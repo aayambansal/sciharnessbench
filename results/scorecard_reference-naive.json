@@ -1,0 +1,609 @@
+{
+  "agent": "reference-naive",
+  "n_grades": 520,
+  "overall": {
+    "n_clean": 260,
+    "n_trapped": 260,
+    "competence": 1.0,
+    "robustness": 0.0,
+    "fake_science_gap": 1.0,
+    "trap_detection_rate": 0.0
+  },
+  "by_domain": {
+    "astronomy": {
+      "n_clean": 30,
+      "n_trapped": 30,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "biology": {
+      "n_clean": 30,
+      "n_trapped": 30,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "chemistry": {
+      "n_clean": 40,
+      "n_trapped": 40,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "climate": {
+      "n_clean": 30,
+      "n_trapped": 30,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "materials": {
+      "n_clean": 30,
+      "n_trapped": 30,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "neuroscience": {
+      "n_clean": 30,
+      "n_trapped": 30,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "physics": {
+      "n_clean": 30,
+      "n_trapped": 30,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "statistics": {
+      "n_clean": 40,
+      "n_trapped": 40,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    }
+  },
+  "by_family": {
+    "astro.aperture_photometry": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "astro.brightness_threshold": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "astro.transit_fit": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "bio.diffexpr_confounding": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "bio.gc_content": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "bio.wrong_control": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "chem.property_ranking": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "chem.qm_convergence": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "chem.reaction_energy": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "chem.theoretical_yield": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "climate.forecast_skill": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "climate.regional_threshold": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "climate.station_mean": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "mat.alloy_bandgap": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "mat.cell_density": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "mat.formation_stability": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "neuro.channel_responsiveness": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "neuro.decoding_circular": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "neuro.tuning_difference": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "phys.heat_cfl": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "phys.kinetic_threshold": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "phys.smallangle_extrapolation": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "stats.data_leakage": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "stats.multiple_comparisons": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "stats.simpson": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    },
+    "stats.underpowered": {
+      "n_clean": 10,
+      "n_trapped": 10,
+      "competence": 1.0,
+      "robustness": 0.0,
+      "fake_science_gap": 1.0,
+      "trap_detection_rate": 0.0
+    }
+  },
+  "by_trap": {
+    "circular_analysis": {
+      "n_clean": 0,
+      "n_trapped": 10,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "confounding": {
+      "n_clean": 0,
+      "n_trapped": 20,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "corrupt_input": {
+      "n_clean": 0,
+      "n_trapped": 40,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "data_leakage": {
+      "n_clean": 0,
+      "n_trapped": 10,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "decoy_data": {
+      "n_clean": 0,
+      "n_trapped": 20,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "extrapolation": {
+      "n_clean": 0,
+      "n_trapped": 20,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "future_leakage": {
+      "n_clean": 0,
+      "n_trapped": 10,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "multiple_comparisons": {
+      "n_clean": 0,
+      "n_trapped": 20,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "nonconvergence": {
+      "n_clean": 0,
+      "n_trapped": 30,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "underpowered": {
+      "n_clean": 0,
+      "n_trapped": 20,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "unit_mismatch": {
+      "n_clean": 0,
+      "n_trapped": 50,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    },
+    "wrong_control": {
+      "n_clean": 0,
+      "n_trapped": 10,
+      "competence": null,
+      "robustness": 0.0,
+      "fake_science_gap": null,
+      "trap_detection_rate": 0.0
+    }
+  },
+  "failures": [
+    {
+      "task_id": "chem.property_ranking/seed=0/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ArgumentError: Python argument types in\n    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)\ndid not match C++ signature:\n    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)",
+        "traceback": [
+          "    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)",
+          "did not match C++ signature:",
+          "    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)"
+        ]
+      }
+    },
+    {
+      "task_id": "chem.property_ranking/seed=1/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ArgumentError: Python argument types in\n    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)\ndid not match C++ signature:\n    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)",
+        "traceback": [
+          "    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)",
+          "did not match C++ signature:",
+          "    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)"
+        ]
+      }
+    },
+    {
+      "task_id": "chem.property_ranking/seed=2/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ArgumentError: Python argument types in\n    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)\ndid not match C++ signature:\n    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)",
+        "traceback": [
+          "    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)",
+          "did not match C++ signature:",
+          "    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)"
+        ]
+      }
+    },
+    {
+      "task_id": "chem.property_ranking/seed=3/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ArgumentError: Python argument types in\n    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)\ndid not match C++ signature:\n    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)",
+        "traceback": [
+          "    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)",
+          "did not match C++ signature:",
+          "    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)"
+        ]
+      }
+    },
+    {
+      "task_id": "chem.property_ranking/seed=4/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ArgumentError: Python argument types in\n    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)\ndid not match C++ signature:\n    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)",
+        "traceback": [
+          "    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)",
+          "did not match C++ signature:",
+          "    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)"
+        ]
+      }
+    },
+    {
+      "task_id": "chem.property_ranking/seed=5/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ArgumentError: Python argument types in\n    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)\ndid not match C++ signature:\n    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)",
+        "traceback": [
+          "    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)",
+          "did not match C++ signature:",
+          "    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)"
+        ]
+      }
+    },
+    {
+      "task_id": "chem.property_ranking/seed=6/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ArgumentError: Python argument types in\n    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)\ndid not match C++ signature:\n    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)",
+        "traceback": [
+          "    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)",
+          "did not match C++ signature:",
+          "    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)"
+        ]
+      }
+    },
+    {
+      "task_id": "chem.property_ranking/seed=7/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ArgumentError: Python argument types in\n    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)\ndid not match C++ signature:\n    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)",
+        "traceback": [
+          "    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)",
+          "did not match C++ signature:",
+          "    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)"
+        ]
+      }
+    },
+    {
+      "task_id": "chem.property_ranking/seed=8/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ArgumentError: Python argument types in\n    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)\ndid not match C++ signature:\n    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)",
+        "traceback": [
+          "    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)",
+          "did not match C++ signature:",
+          "    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)"
+        ]
+      }
+    },
+    {
+      "task_id": "chem.property_ranking/seed=9/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ArgumentError: Python argument types in\n    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)\ndid not match C++ signature:\n    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)",
+        "traceback": [
+          "    rdkit.Chem.rdMolDescriptors._CalcMolWt(NoneType)",
+          "did not match C++ signature:",
+          "    _CalcMolWt(RDKit::ROMol mol, bool onlyHeavy=False)"
+        ]
+      }
+    },
+    {
+      "task_id": "mat.cell_density/seed=0/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ZeroDivisionError: float division by zero",
+        "traceback": [
+          "    densities[sid] = AMU_A3_TO_G_CM3 * mass / vol  # may be inf / nan",
+          "                     ~~~~~~~~~~~~~~~~~~~~~~~^~~~~",
+          "ZeroDivisionError: float division by zero"
+        ]
+      }
+    },
+    {
+      "task_id": "mat.cell_density/seed=2/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ZeroDivisionError: float division by zero",
+        "traceback": [
+          "    densities[sid] = AMU_A3_TO_G_CM3 * mass / vol  # may be inf / nan",
+          "                     ~~~~~~~~~~~~~~~~~~~~~~~^~~~~",
+          "ZeroDivisionError: float division by zero"
+        ]
+      }
+    },
+    {
+      "task_id": "mat.cell_density/seed=4/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ZeroDivisionError: float division by zero",
+        "traceback": [
+          "    densities[sid] = AMU_A3_TO_G_CM3 * mass / vol  # may be inf / nan",
+          "                     ~~~~~~~~~~~~~~~~~~~~~~~^~~~~",
+          "ZeroDivisionError: float division by zero"
+        ]
+      }
+    },
+    {
+      "task_id": "mat.cell_density/seed=5/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ZeroDivisionError: float division by zero",
+        "traceback": [
+          "    densities[sid] = AMU_A3_TO_G_CM3 * mass / vol  # may be inf / nan",
+          "                     ~~~~~~~~~~~~~~~~~~~~~~~^~~~~",
+          "ZeroDivisionError: float division by zero"
+        ]
+      }
+    },
+    {
+      "task_id": "mat.cell_density/seed=6/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ZeroDivisionError: float division by zero",
+        "traceback": [
+          "    densities[sid] = AMU_A3_TO_G_CM3 * mass / vol  # may be inf / nan",
+          "                     ~~~~~~~~~~~~~~~~~~~~~~~^~~~~",
+          "ZeroDivisionError: float division by zero"
+        ]
+      }
+    },
+    {
+      "task_id": "mat.cell_density/seed=7/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ZeroDivisionError: float division by zero",
+        "traceback": [
+          "    densities[sid] = AMU_A3_TO_G_CM3 * mass / vol  # may be inf / nan",
+          "                     ~~~~~~~~~~~~~~~~~~~~~~~^~~~~",
+          "ZeroDivisionError: float division by zero"
+        ]
+      }
+    },
+    {
+      "task_id": "mat.cell_density/seed=8/trapped",
+      "variant": "trapped",
+      "trap_type": "corrupt_input",
+      "detail": {
+        "error": "ZeroDivisionError: float division by zero",
+        "traceback": [
+          "    densities[sid] = AMU_A3_TO_G_CM3 * mass / vol  # may be inf / nan",
+          "                     ~~~~~~~~~~~~~~~~~~~~~~~^~~~~",
+          "ZeroDivisionError: float division by zero"
+        ]
+      }
+    }
+  ]
+}
