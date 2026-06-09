@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use SciHarnessBench, please cite it."
+title: "SciHarnessBench: A Self-Generating Benchmark for Fake Science in AI Scientific Agents"
+abstract: >-
+  A benchmark that measures whether AI scientific agents catch the data flaws
+  that turn a plausible analysis into a confident wrong conclusion. Every task is
+  a clean/trapped pair; the headline metric is the Fake-Science Gap. The suite is
+  procedurally instantiated from human-authored templates and deterministically
+  self-graded across eight scientific domains and twelve trap types.
+authors:
+  - family-names: Bansal
+    given-names: Aayam
+    affiliation: Synthetic Sciences
+repository-code: "https://github.com/aayambansal/sciharnessbench"
+license: MIT
+keywords:
+  - benchmark
+  - AI for science
+  - agents
+  - evaluation
+  - reproducibility
+version: "0.2.0"
+date-released: "2026-06-09"

@@ -6,17 +6,22 @@ the host's Python (it could ``import shb`` and call an oracle) and a shared
 scratch directory. Official scores must not depend on trusting the agent, so they
 use this harness instead, which realizes the protocol in ``docs/THREAT_MODEL.md``:
 
-* **One sandbox per task.** Each instance gets a fresh, unique temp directory with
-  only its serialized public view (``view.json``) and asset files. No sibling task
-  is reachable; no state survives between tasks.
-* **Out-of-process.** The agent is an external command run via ``subprocess`` with
-  a cleaned environment (``PYTHONPATH`` stripped) and the sandbox as its cwd. In
-  the production deployment the agent runs in a container that does not contain
-  the ``shb`` package at all, so the generators, graders, and reference solvers
-  are unreachable.
-* **Bounded.** A per-task wall-clock timeout (and optional memory cap on POSIX)
-  applies; a timeout, crash, or unparseable submission is recorded as an *unsafe
-  failure* (score 0) — distinct from a confident wrong answer.
+* **One isolated sandbox per task.** Each instance gets its own fresh parent
+  directory containing a single ``sandbox/`` dir with only the serialized public
+  view (``view.json``) and asset files. ``..`` from the sandbox reveals nothing
+  but the sandbox itself; no sibling task is reachable.
+* **No state between tasks.** The per-task directory is deleted after grading.
+* **Out-of-process, salt-blind.** The agent is an external command run via
+  ``subprocess`` with a cleaned environment: ``PYTHONPATH`` stripped and
+  ``SHB_SALT``/``SHB_STRICT`` removed, so the agent cannot read the private salt
+  or reach the host repo. The non-zero return code, a timeout, a crash, or an
+  unparseable submission are each recorded as an *unsafe failure* (score 0),
+  distinct from a confident wrong answer.
+
+In the production deployment the agent runs in a container image that does **not**
+contain the ``shb`` package and has **no network**, which is the only way to make
+``import shb`` and exfiltration impossible; this module is the reference driver of
+that protocol and enforces everything achievable from the host side.
 
 The agent command receives the sandbox path as its final argument, reads
 ``view.json`` + assets, and writes ``submission.json`` of the form
@@ -28,6 +33,7 @@ from __future__ import annotations
 import json
 import os
 import resource
+import shutil
 import subprocess
 import tempfile
 from typing import Iterable, Optional
@@ -37,8 +43,9 @@ from .runner import _error_grade, _ordered
 from .types import Submission, TaskInstance
 
 
-def _write_sandbox(inst: TaskInstance, root: str) -> str:
-    box = tempfile.mkdtemp(prefix="task_", dir=root)
+def _write_sandbox(inst: TaskInstance, taskroot: str) -> str:
+    box = os.path.join(taskroot, "sandbox")     # the only child of taskroot: '..' leaks nothing
+    os.makedirs(box, exist_ok=True)
     view = inst.view()
     for name, content in view.assets.items():
         with open(os.path.join(box, name), "w") as fh:
@@ -81,34 +88,48 @@ def _parse_submission(box: str) -> Optional[Submission]:
                       confidence=conf, notes=str(d.get("notes", ""))[:2000])
 
 
+def _clean_env() -> dict:
+    # The agent must not see the host repo or the private salt.
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("PYTHONPATH", "SHB_SALT", "SHB_STRICT")}
+    env["PYTHONPATH"] = ""
+    return env
+
+
 def run_isolated(agent_cmd, *, seeds: Iterable[int] = range(5),
                  domains=None, families=None, timeout_s: float = 120.0,
                  mem_mb: Optional[int] = None, shuffle_seed: int = 0, progress: bool = False):
     """Run an external ``agent_cmd`` (list[str]) over the suite in isolation.
 
-    Returns a list of Grade. A timeout/crash/missing-output is an unsafe failure.
+    Returns a list of Grade. A non-zero exit, timeout, crash, or missing/invalid
+    output is an unsafe failure.
     """
     registry.ensure_loaded()
     fams = registry.select(domains=domains, families=families)
     items = _ordered(fams, list(seeds), None, True, shuffle_seed)
-    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
-    env["PYTHONPATH"] = ""           # the host repo is not on the agent's path
-    root = tempfile.mkdtemp(prefix="shb_isolated_")
+    env = _clean_env()
     grades = []
     for k, (fam, seed, variant) in enumerate(items):
         if progress and k % 25 == 0:
             print(f"[shb-isolated] {k}/{len(items)}")
         inst = fam.generate(seed, variant)
-        box = _write_sandbox(inst, root)
+        taskroot = tempfile.mkdtemp(prefix="shb_task_")   # unique parent; deleted below
         try:
-            subprocess.run(list(agent_cmd) + [box], cwd=box, env=env, timeout=timeout_s,
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                           preexec_fn=_limit_mem(mem_mb))
-            sub = _parse_submission(box)
-            grades.append(fam.grade(inst, sub) if sub is not None
-                          else _error_grade(inst, fam, RuntimeError("no submission.json")))
-        except subprocess.TimeoutExpired:
-            grades.append(_error_grade(inst, fam, TimeoutError(f"timeout after {timeout_s}s")))
-        except Exception as exc:  # noqa: BLE001
-            grades.append(_error_grade(inst, fam, exc))
+            box = _write_sandbox(inst, taskroot)
+            try:
+                proc = subprocess.run(list(agent_cmd) + [box], cwd=box, env=env, timeout=timeout_s,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                      preexec_fn=_limit_mem(mem_mb))
+                if proc.returncode != 0:
+                    grades.append(_error_grade(inst, fam, RuntimeError(f"agent exited {proc.returncode}")))
+                else:
+                    sub = _parse_submission(box)
+                    grades.append(fam.grade(inst, sub) if sub is not None
+                                  else _error_grade(inst, fam, RuntimeError("no submission.json")))
+            except subprocess.TimeoutExpired:
+                grades.append(_error_grade(inst, fam, TimeoutError(f"timeout after {timeout_s}s")))
+            except Exception as exc:  # noqa: BLE001
+                grades.append(_error_grade(inst, fam, exc))
+        finally:
+            shutil.rmtree(taskroot, ignore_errors=True)    # no state survives between tasks
     return grades
