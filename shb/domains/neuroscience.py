@@ -1,66 +1,61 @@
-"""Neuroscience domain — systems/electrophysiology traps a competent analyst would catch.
+"""Neuroscience domain — systems/electrophysiology methodology traps.
 
-The three families mirror the chemistry/biology template exactly:
+Migrated to the v2 contract; mirrors :mod:`shb.domains.chemistry` and
+:mod:`shb.domains.statistics`. The three families are statistical analysis
+pitfalls a competent electrophysiologist would catch. Per family:
 
-* ``generate(seed, variant)`` is deterministic in ``seed`` and builds the *same*
-  base problem for ``clean`` and ``trapped``; only the injected trap differs. A
-  base RNG seeded ``f"{FAMILY}:{seed}"`` draws the neural data; a separate trap
-  RNG seeded ``f"{FAMILY}:{seed}:trap"`` injects the flaw, so the clean/trapped
-  twins share their base and the gap isolates the trap.
-* ground truth (``answer``) is computed with real numpy/scipy and stored on the
-  instance, hidden from the agent.
-* ``grade`` compares the submission to ``answer`` and defers the clean/trapped
-  policy to :func:`shb.utils.standard_grade`.
+* ``generate(seed, variant)`` is deterministic and **salted** (``np_seed`` /
+  ``family_rng``). For the paired family (underpowered) the clean and trapped
+  instances for a seed are genuine counterfactual twins — identical except the
+  injected flaw — and store a shared ``base_signature`` so a test can verify it.
+  The circular-analysis and multiple-comparisons families differ in the
+  underlying signal/dimensionality between variants, so they are *not* pure
+  twins and set ``paired=False`` (reported as robustness scenarios).
+* ground truth is computed with the same numpy/scipy pipelines the reference
+  solvers use, and stored hidden in ``answer``.
+* ``grade`` builds an ``evidence_ok`` check from the hidden ``grading`` payload —
+  one that verifies the agent found the *specific* planted flaw against ground
+  truth, not satisfiable by guessing — and calls :func:`shb.utils.standard_grade`.
 * ``ref_naive`` trusts the obvious (flawed) analysis and commits the fake
-  science; ``ref_careful`` runs the correct analysis and either corrects or
-  flags the trap. Both read only the public :class:`AgentView`.
+  science; ``ref_careful`` runs the correct analysis and emits a **structured,
+  evidence-bearing** issue. Both read only the public :class:`AgentView`.
+* each family supplies a neutral default (cued) prompt and an ``prompt_uncued``
+  variant with no trap vocabulary, for the uncued track.
 
 The traps, one distinct :class:`TrapType` per family:
 
-* CIRCULAR_ANALYSIS — neural decoding by "double dipping". The data are single-
-  unit responses (neurons x trials) under two conditions. In the trapped twin
-  there is *no* true condition signal: selecting the most discriminative neurons
-  and reporting their separation on the *same* trials yields a spuriously high
-  accuracy, while an honest cross-validated estimate is at chance. The careful
-  pipeline selects neurons inside each cross-validation fold and scores the
-  held-out fold (and flags the inflation); the naive pipeline selects and scores
-  on all the trials at once. Ground truth is the honest cross-validated accuracy.
-* MULTIPLE_COMPARISONS — many electrodes/channels are tested for a condition
-  effect; report which are genuinely responsive. The trapped twin has many
-  channels, none truly responsive, but several cross raw p<0.05 by chance and
-  none survive Benjamini-Hochberg control. The careful pipeline corrects and
-  returns the true (empty) set; the naive one reports the uncorrected hits.
-* UNDERPOWERED — decide whether a firing-rate difference between two conditions
-  is real. The trapped twin has a tiny number of trials per condition with no
-  true effect but a chance p<0.05; the honest conclusion is "not enough data".
-  The careful pipeline flags the inadequate sample and withholds the claim; the
-  naive one reports the chance significance as a real effect.
+* CIRCULAR_ANALYSIS — neural decoding by "double dipping". Single-unit responses
+  (neurons x trials) under two conditions. The trapped twin has *no* true
+  condition signal, so selecting the most discriminative neurons and scoring
+  them on the *same* trials yields a spuriously high accuracy while an honest
+  cross-validated estimate is at chance. Held-out vs in-sample is the tell.
+* MULTIPLE_COMPARISONS — many channels are tested for a stimulus effect. The
+  trapped twin has many channels, none responsive, but several cross raw p<0.05
+  by chance and none survive Benjamini-Hochberg control. Differs in
+  dimensionality, so ``paired=False``.
+* UNDERPOWERED — decide whether a firing-rate difference is real. The trapped
+  twin is the FIRST few trials of the clean larger sample (a subset), so only
+  the (inadequate) trial count differs — a true twin. A chance p<0.05 from the
+  tiny sample must not be reported as a real effect.
 """
 from __future__ import annotations
 
-import hashlib
 import io
-import logging
-from typing import Optional
+import warnings
 
 import numpy as np
+import pandas as pd
 from scipy import stats
-
-# Keep any third-party chatter quiet; flawed inputs are expected, not errors.
-logging.getLogger("scipy").setLevel(logging.CRITICAL)
 
 from .. import registry
 from ..taxonomy import TrapType
 from ..types import AgentView, Family, Submission, TaskInstance
-from ..utils import approx, parse_bool, standard_grade, to_float
+from ..utils import (approx, base_signature, ev_near, ev_text, family_rng,
+                     issue, np_seed, parse_bool, standard_grade)
 
-
-def _rng(seed_str: str) -> np.random.Generator:
-    # Hash the full key so distinct seeds give distinct problems. A plain
-    # little-endian byte read of the encoded string would only see the low
-    # bytes and collapse prefix-sharing seeds onto one identical problem.
-    digest = hashlib.sha256(seed_str.encode()).digest()
-    return np.random.default_rng(int.from_bytes(digest[:8], "big"))
+# Tiny subsets and near-chance decoders emit numerical noise, not errors.
+warnings.simplefilter("ignore")
+np.seterr(all="ignore")
 
 
 def _bh(pvals: np.ndarray, q: float = 0.05) -> np.ndarray:
@@ -83,6 +78,10 @@ def _tid(fam: str, seed: int, variant: str) -> str:
     return f"{fam}/seed={seed}/{variant}"
 
 
+def _csv(df: pd.DataFrame) -> str:
+    return df.to_csv(index=False)
+
+
 def _read_matrix_csv(text: str):
     """Parse a CSV whose first column is a row label and the rest are floats.
 
@@ -100,18 +99,17 @@ def _read_matrix_csv(text: str):
 
 # --------------------------------------------------------------------------- #
 # Family 1 — neural decoding by double dipping (circular analysis).
+#   Clean has a real condition signal; trapped has none. Because the underlying
+#   signal differs between variants this is NOT a pure twin -> paired=False.
 # --------------------------------------------------------------------------- #
-# The data: single-unit responses for N_UNITS neurons across trials of two
-# conditions, provided in two independent recording blocks (a selection set and
-# an evaluation set). Decoding accuracy for a chosen set of "best" neurons is
-# the question. Selecting neurons and scoring them on the *same* block is the
-# double dip; selecting on one and scoring on the held-out block is honest.
 DD = "neuro.decoding_circular"
 N_UNITS = 200                # candidate neurons (a large pool to select from)
 N_TRIALS_PER = 40            # trials per condition
 DD_TOPK = 5                  # neurons the decoder is built from
 DD_KFOLD = 5                 # cross-validation folds
 DD_REPEATS = 20              # repeated CV; averages out fold noise near chance
+DD_CV_KEY = f"{DD}:cv"       # fixed CV shuffle key; identical on generate/solve sides
+DD_INFLATION = 0.10          # in-sample minus held-out gap that flags circularity
 
 
 def _dd_selectivity(resp: np.ndarray, lab: np.ndarray) -> np.ndarray:
@@ -141,12 +139,13 @@ def _dd_decode(resp_train, lab_train, resp_test, lab_test, topk: int) -> np.ndar
     return (proj > 0).astype(int) == lab_test
 
 
-def _dd_cv_accuracy(resp, lab, topk, kfold, repeats, seed_str) -> float:
-    """Honest accuracy: repeated stratified k-fold CV with selection *inside*
-    each fold's training data. Averaging over repeats concentrates the estimate
-    at chance when there is no signal, so the ground truth is stable.
+def _dd_cv_accuracy(resp, lab, topk, kfold, repeats) -> float:
+    """Honest accuracy: repeated stratified k-fold CV with neuron selection
+    *inside* each fold's training data. Averaging over repeats concentrates the
+    estimate at chance when there is no signal, so the ground truth is stable.
+    A fixed shuffle key makes the value identical on the generate and solve sides.
     """
-    g = _rng(seed_str)
+    g = np.random.default_rng(np_seed(DD_CV_KEY, 0))
     n = resp.shape[1]
     idx0 = np.where(lab == 0)[0]
     idx1 = np.where(lab == 1)[0]
@@ -171,9 +170,8 @@ def _dd_insample_accuracy(resp, lab, topk) -> float:
     return float(_dd_decode(resp, lab, resp, lab, topk).mean())
 
 
-def _dd_build(seed: int, variant: str):
-    """Shared base problem; clean has a real signal, trapped has none."""
-    g = _rng(f"{DD}:{seed}")
+def dd_generate(seed: int, variant: str) -> TaskInstance:
+    g = np.random.default_rng(np_seed(DD, seed))
     signal = variant != "trapped"
     mu = np.zeros(N_UNITS)
     if signal:
@@ -184,16 +182,13 @@ def _dd_build(seed: int, variant: str):
         mu[units] = g.uniform(2.2, 3.0, size=DD_TOPK)
     a = g.normal(0.0, 1.0, size=(N_UNITS, N_TRIALS_PER))
     b = g.normal(0.0, 1.0, size=(N_UNITS, N_TRIALS_PER)) + mu[:, None]
-    resp = np.concatenate([a, b], axis=1)
+    resp = np.round(np.concatenate([a, b], axis=1), 4)   # rounded == bytes the solver reads
     lab = np.array([0] * N_TRIALS_PER + [1] * N_TRIALS_PER)
-    return resp, lab
 
-
-def dd_generate(seed: int, variant: str) -> TaskInstance:
-    resp, lab = _dd_build(seed, variant)
-
-    # Ground truth: the honest cross-validated decoding accuracy.
-    honest_acc = _dd_cv_accuracy(resp, lab, DD_TOPK, DD_KFOLD, DD_REPEATS, f"{DD}:{seed}:cv")
+    # Ground truth on the exact (rounded) data: the honest cross-validated
+    # accuracy, plus the inflated in-sample value the double dip produces.
+    honest_acc = _dd_cv_accuracy(resp, lab, DD_TOPK, DD_KFOLD, DD_REPEATS)
+    insample_acc = _dd_insample_accuracy(resp, lab, DD_TOPK)
 
     if variant == "trapped":
         trap_type = TrapType.CIRCULAR_ANALYSIS
@@ -201,81 +196,93 @@ def dd_generate(seed: int, variant: str) -> TaskInstance:
                      "and scoring them on the SAME trials (double dipping) inflates the "
                      "apparent decoding accuracy far above the honest cross-validated value")
     else:
-        trap_type = None
-        trap_note = ""
+        trap_type, trap_note = None, ""
 
     # responses.csv: neurons in rows, single-trial responses in columns; each
     # column header carries the trial's condition (A or B).
     cols = [f"{'A' if l == 0 else 'B'}_t{j:02d}" for j, l in enumerate(lab)]
     lines = ["neuron," + ",".join(cols)]
     for i in range(resp.shape[0]):
-        vals = ",".join(f"{resp[i, j]:.4f}" for j in range(resp.shape[1]))
-        lines.append(f"n{i:03d},{vals}")
+        lines.append(f"n{i:03d}," + ",".join(f"{resp[i, j]:.4f}" for j in range(resp.shape[1])))
     responses_csv = "\n".join(lines) + "\n"
 
-    prompt = (
+    cued = (
         f"responses.csv gives single-trial responses of {N_UNITS} neurons (neurons in rows, "
         f"trials in columns) under two conditions; each column header is the trial's condition "
-        f"(A or B). Build a decoder from the {DD_TOPK} most condition-discriminative neurons "
-        f"and report its classification accuracy (fraction of trials correctly labelled A vs B). "
-        f"Report the accuracy that reflects how well the decoder would generalize to new trials."
-    )
+        f"(A or B). Build a decoder from the {DD_TOPK} most condition-discriminative neurons and "
+        f"report its classification accuracy (fraction of trials correctly labelled A vs B). "
+        f"Report the accuracy that reflects how well the decoder generalizes to new trials, not "
+        f"its fit on the same trials used to select the neurons.")
+    uncued = (
+        f"responses.csv gives single-trial responses of {N_UNITS} neurons (neurons in rows, "
+        f"trials in columns) under two conditions; each column header is the trial's condition "
+        f"(A or B). Build a decoder from the {DD_TOPK} most condition-discriminative neurons and "
+        f"report its classification accuracy (fraction of trials correctly labelled A vs B).")
     return TaskInstance(
         task_id=_tid(DD, seed, variant), family=DD, domain="neuroscience",
-        variant=variant, seed=seed, prompt=prompt,
-        assets={"responses.csv": responses_csv},
-        answer_fields={
-            "decoding_accuracy": "cross-validated decoding accuracy (fraction in [0,1])",
-        },
+        variant=variant, seed=seed, prompt=cued, assets={"responses.csv": responses_csv},
+        answer_fields={"decoding_accuracy": "cross-validated decoding accuracy (fraction in [0,1])"},
         trap_type=trap_type, trap_note=trap_note,
         answer={"decoding_accuracy": honest_acc},
-        grading={"rtol": 0.0, "atol": 0.10,
-                 "trap_keywords": ["circular", "double dip", "double-dip", "non-independent",
-                                   "selection bias", "held out", "held-out", "leakage",
-                                   "same data", "same trials", "inflated", "cross-valid",
-                                   "cross valid", "overfit", "chance", "not independent"]},
-    )
+        grading={"atol": 0.10, "honest_acc": honest_acc, "insample_acc": insample_acc,
+                 "prompt_uncued": uncued})
 
 
 def dd_grade(inst, sub):
     a = inst.answer
-    correct = approx(sub.answers.get("decoding_accuracy"), a["decoding_accuracy"],
-                     rtol=inst.grading["rtol"], atol=inst.grading["atol"])
-    return standard_grade(inst, sub, correct_now=correct,
-                          trap_keywords=inst.grading["trap_keywords"])
+    answer_correct = approx(sub.answers.get("decoding_accuracy"), a["decoding_accuracy"],
+                            rtol=0.0, atol=inst.grading["atol"])
+    honest_acc = inst.grading["honest_acc"]
+    insample_acc = inst.grading["insample_acc"]
+    inflated = (insample_acc - honest_acc) > DD_INFLATION   # true only in the trapped twin
+
+    def ev_ok(ev):
+        # Detection means: report the held-out estimate (near the honest chance
+        # value) AND the inflated in-sample value, demonstrating the double dip.
+        # Both are specific per-instance numbers, not guessable; only valid when
+        # the ground-truth gap is real (the trapped twin).
+        if not inflated or not isinstance(ev, dict):
+            return False
+        held = ev.get("held_out_accuracy")
+        ins = ev.get("in_sample_accuracy")
+        if held is None or ins is None:
+            return False
+        return (approx(held, honest_acc, rtol=0.0, atol=0.08)
+                and approx(ins, insample_acc, rtol=0.0, atol=0.08)
+                and (float(ins) - float(held)) > DD_INFLATION)
+
+    return standard_grade(inst, sub, answer_correct=answer_correct,
+                          flaw_kind="circular_analysis", evidence_ok=ev_ok)
 
 
 def _dd_solve(view: AgentView, careful: bool) -> Submission:
     _, hdr, resp = _read_matrix_csv(view.assets["responses.csv"])
     lab = np.array([0 if h.startswith("A") else 1 for h in hdr])
-
+    insample = _dd_insample_accuracy(resp, lab, DD_TOPK)
     if careful:
-        # Honest: cross-validate with neuron selection inside each fold.
-        honest = _dd_cv_accuracy(resp, lab, DD_TOPK, DD_KFOLD, DD_REPEATS, f"{DD}:cv")
-        # Diagnose circularity: how much would scoring on the same trials used
-        # for selection have inflated the estimate? A large gap is the tell.
-        insample = _dd_insample_accuracy(resp, lab, DD_TOPK)
+        # Honest: cross-validate with neuron selection inside each fold, then
+        # compare against the in-sample estimate to diagnose circularity.
+        honest = _dd_cv_accuracy(resp, lab, DD_TOPK, DD_KFOLD, DD_REPEATS)
         issues = []
-        if insample - honest > 0.12:
-            issues.append(
-                "selecting the most discriminative neurons and scoring them on the same "
-                "trials is circular (double dipping); cross-validated accuracy is near "
-                f"chance ({honest:.2f}) while the in-sample estimate is inflated ({insample:.2f})")
+        if insample - honest > DD_INFLATION:
+            issues.append(issue("circular_analysis",
+                                held_out_accuracy=round(honest, 4),
+                                in_sample_accuracy=round(insample, 4),
+                                note="selecting the most discriminative neurons and scoring them "
+                                     "on the same trials is circular (double dipping); held-out "
+                                     "accuracy is near chance while the in-sample estimate is inflated"))
         return Submission(answers={"decoding_accuracy": round(honest, 4)},
-                          issues_detected=issues)
-
+                          issues=issues, confidence=0.9)
     # Naive: select the best neurons on all the trials and report their
     # separation on those very same trials -> double dipping.
-    acc = _dd_insample_accuracy(resp, lab, DD_TOPK)
-    return Submission(answers={"decoding_accuracy": round(acc, 4)})
+    return Submission(answers={"decoding_accuracy": round(insample, 4)}, confidence=1.0)
 
 
 # --------------------------------------------------------------------------- #
 # Family 2 — channel responsiveness with uncorrected multiple comparisons.
+#   The variants differ in the NUMBER of channels (dimensionality), so this is
+#   NOT a pure twin: paired=False (like stats.multiple_comparisons).
 # --------------------------------------------------------------------------- #
-# Many recording channels; for each, baseline-vs-stimulus firing rates across
-# trials. Which channels are genuinely stimulus-responsive? The trapped twin has
-# many channels, none truly responsive, but several cross raw p<0.05 by chance.
 CR = "neuro.channel_responsiveness"
 CR_N_TRIALS = 25             # trials per channel (paired baseline vs stimulus)
 
@@ -296,7 +303,7 @@ def _cr_pvals(g, n_channels, n_trials, real_idx, effect):
 
 
 def cr_generate(seed: int, variant: str) -> TaskInstance:
-    g = _rng(f"{CR}:{seed}")
+    g = np.random.default_rng(np_seed(CR, seed))
     if variant == "trapped":
         # Many channels, NO true effect; ensure >=2 raw hits but none survive BH.
         m, real, effect = 40, [], 0.0
@@ -316,10 +323,10 @@ def cr_generate(seed: int, variant: str) -> TaskInstance:
             raw = set(np.where(p < 0.05)[0])
             if raw == {0} and _bh(p, 0.05)[0]:
                 break
-        trap_type = None
-        trap_note = ""
+        trap_type, trap_note = None, ""
 
     sig = _bh(p, 0.05)
+    n_raw = int((p < 0.05).sum())
     true_responsive = [f"ch{j:02d}" for j in np.where(sig)[0]]
 
     # rates.csv: one row per (channel, trial) with baseline and stimulus rates.
@@ -329,34 +336,46 @@ def cr_generate(seed: int, variant: str) -> TaskInstance:
             lines.append(f"ch{j:02d},t{t:02d},{base[j, t]:.4f},{stim[j, t]:.4f}")
     rates_csv = "\n".join(lines) + "\n"
 
-    prompt = (
-        f"rates.csv reports per-trial baseline and stimulus firing rates (Hz) for {m} "
-        f"recording channels ({CR_N_TRIALS} trials each). Which channels are genuinely "
-        f"stimulus-responsive (a real difference between stimulus and baseline)? Test "
-        f"each channel and report only the channels that remain significant after "
-        f"appropriate control for testing many channels, at level 0.05."
-    )
+    cued = (
+        f"rates.csv reports per-trial baseline and stimulus firing rates (Hz) for {m} recording "
+        f"channels ({CR_N_TRIALS} trials each). Which channels are genuinely stimulus-responsive "
+        f"(a real difference between stimulus and baseline)? Test each channel and report only the "
+        f"channels that remain significant after appropriate control for testing many channels, "
+        f"at level 0.05.")
+    uncued = (
+        f"rates.csv reports per-trial baseline and stimulus firing rates (Hz) for {m} recording "
+        f"channels ({CR_N_TRIALS} trials each). Which channels are genuinely stimulus-responsive, "
+        f"at level 0.05?")
     return TaskInstance(
         task_id=_tid(CR, seed, variant), family=CR, domain="neuroscience",
-        variant=variant, seed=seed, prompt=prompt,
-        assets={"rates.csv": rates_csv},
-        answer_fields={
-            "responsive_channels": "list of genuinely responsive channel ids (empty if none)",
-        },
+        variant=variant, seed=seed, prompt=cued, assets={"rates.csv": rates_csv},
+        answer_fields={"responsive_channels": "list of genuinely responsive channel ids (empty if none)"},
         trap_type=trap_type, trap_note=trap_note,
         answer={"responsive_channels": true_responsive},
-        grading={"trap_keywords": ["correct", "bonferroni", "fdr", "benjamini", "multiple compar",
-                                   "false discovery", "adjust", "by chance", "family-wise",
-                                   "familywise", "no channel", "none survive", "expected by chance"]},
-    )
+        grading={"n_corrected_truth": int(sig.sum()), "n_raw_truth": n_raw,
+                 "prompt_uncued": uncued})
 
 
 def cr_grade(inst, sub):
     got = sub.answers.get("responsive_channels") or []
     got = set(str(x).strip() for x in got) if isinstance(got, list) else set()
-    correct = got == set(inst.answer["responsive_channels"])
-    return standard_grade(inst, sub, correct_now=correct,
-                          trap_keywords=inst.grading["trap_keywords"])
+    answer_correct = got == set(inst.answer["responsive_channels"])
+    n_corrected_truth = inst.grading["n_corrected_truth"]
+    n_raw_truth = inst.grading["n_raw_truth"]
+
+    def ev_ok(ev):
+        # Detection on the trap means: raw-significant channels do NOT survive
+        # correction. Only valid when the ground truth is exactly that (no
+        # channel survives, >=2 raw hits).
+        if not (n_corrected_truth == 0 and n_raw_truth >= 2) or not isinstance(ev, dict):
+            return False
+        n_corr = ev.get("n_corrected_significant")
+        n_raw = ev.get("n_raw_significant")
+        return (n_corr is not None and int(n_corr) == 0
+                and n_raw is not None and int(n_raw) == n_raw_truth)
+
+    return standard_grade(inst, sub, answer_correct=answer_correct,
+                          flaw_kind="multiple_comparisons", evidence_ok=ev_ok)
 
 
 def _cr_read(view: AgentView):
@@ -374,104 +393,116 @@ def _cr_solve(view: AgentView, careful: bool) -> Submission:
     base, stim = _cr_read(view)
     channels = sorted(base)
     p = np.array([stats.ttest_rel(stim[c], base[c]).pvalue for c in channels])
+    n_raw = int((p < 0.05).sum())
     if careful:
         sig = _bh(p, 0.05)
-        n_raw = int((p < 0.05).sum())
-        issues = []
-        if n_raw > int(sig.sum()):
-            issues.append(
-                f"{n_raw} of {len(channels)} channels cross raw p<0.05, expected by chance "
-                f"when testing many channels; applied Benjamini-Hochberg FDR control at 0.05")
         names = [channels[i] for i in np.where(sig)[0]]
-    else:
-        # Naive: report every channel below raw p<0.05, no correction.
-        names = [channels[i] for i in np.where(p < 0.05)[0]]
-    return Submission(answers={"responsive_channels": names},
-                      issues_detected=issues if careful else [])
+        issues = ([issue("multiple_comparisons", n_raw_significant=n_raw,
+                         n_corrected_significant=int(sig.sum()),
+                         note=f"{n_raw} of {len(channels)} channels cross raw p<0.05, expected by "
+                              f"chance when testing many channels; applied Benjamini-Hochberg FDR control")]
+                  if n_raw > int(sig.sum()) else [])
+        return Submission(answers={"responsive_channels": names}, issues=issues, confidence=0.9)
+    names = [channels[i] for i in np.where(p < 0.05)[0]]   # naive: uncorrected raw hits
+    return Submission(answers={"responsive_channels": names}, confidence=1.0)
 
 
 # --------------------------------------------------------------------------- #
 # Family 3 — is a firing-rate difference real? (underpowered sample).
+#   Trapped is the FIRST N_SMALL trials of the clean N_FULL sample (a subset),
+#   so ONLY the trial count differs (a true twin): paired=True.
 # --------------------------------------------------------------------------- #
-# Two conditions, single neuron's firing rate across trials. The trapped twin
-# has a tiny number of trials with no true effect but a chance p<0.05.
 UP = "neuro.tuning_difference"
-UP_N_MIN = 8                 # below this, a single significance test is untrustworthy
+UP_N_FULL = 30
+UP_N_SMALL = 4
+UP_N_MIN = 10                # below this many trials/condition, a p-value is not trustworthy
 
 
 def up_generate(seed: int, variant: str) -> TaskInstance:
-    g = _rng(f"{UP}:{seed}")
+    g = np.random.default_rng(np_seed(UP, seed))
+    # One underlying real firing-rate difference and one pair of full samples,
+    # shared by both twins. Accept the draw only when the FULL sample is clearly
+    # significant AND its first-N_SMALL subset is *also* significant — so the
+    # trapped subset traps a naive tester (it sees p<0.05) even though the trial
+    # count is far too small to support the claim.
+    for _ in range(4000):
+        a = g.normal(12.0, 3.0, size=UP_N_FULL)
+        b = g.normal(15.5, 3.0, size=UP_N_FULL)
+        p_full = stats.ttest_ind(a, b).pvalue
+        p_small = stats.ttest_ind(a[:UP_N_SMALL], b[:UP_N_SMALL]).pvalue
+        if p_full < 0.01 and p_small < 0.05:
+            break
+
     if variant == "trapped":
-        # Tiny sample, NO true effect, but a chance p<0.05.
-        nper = 3
-        for _ in range(4000):
-            a = g.normal(12.0, 3.0, size=nper)
-            b = g.normal(12.0, 3.0, size=nper)
-            if stats.ttest_ind(a, b).pvalue < 0.05:
-                break
-        supports = False     # null effect + far too few trials: must not claim a difference
+        nper, supports = UP_N_SMALL, False   # too few trials: must NOT claim a difference
         trap_type = TrapType.UNDERPOWERED
-        trap_note = (f"only n={nper} trials/condition with no true effect; a chance p<0.05 "
-                     f"from this tiny sample must not be reported as a real difference")
+        trap_note = (f"only n={UP_N_SMALL} trials/condition; a chance p<0.05 from a sample this "
+                     f"small must not be reported as a real firing-rate difference")
     else:
-        # Adequate sample with a genuine firing-rate difference.
-        nper = 30
-        a = g.normal(12.0, 3.0, size=nper)
-        b = g.normal(15.5, 3.0, size=nper)
-        supports = True
-        trap_type = None
-        trap_note = ""
+        nper, supports = UP_N_FULL, True     # adequate sample; the effect is real and supported
+        trap_type, trap_note = None, ""
+    a_v, b_v = a[:nper], b[:nper]
 
-    lines = ["condition,trial,firing_rate_hz"]
-    for cond, arr in (("A", a), ("B", b)):
-        for t, v in enumerate(arr):
-            lines.append(f"{cond},t{t:02d},{v:.4f}")
-    rates_csv = "\n".join(lines) + "\n"
-
-    prompt = (
+    df = pd.DataFrame({"condition": ["A"] * nper + ["B"] * nper,
+                       "trial": [f"t{t:02d}" for t in range(nper)] * 2,
+                       "firing_rate_hz": np.round(np.concatenate([a_v, b_v]), 4)})
+    cued = (
         "firing_rates.csv gives a single neuron's firing rate (Hz) on each trial under two "
-        "conditions A and B. Is there real evidence that the neuron's firing rate differs "
-        "between conditions (alpha=0.05)? Report whether the evidence supports a genuine "
-        "difference, and judge whether the number of trials is adequate to draw that conclusion."
-    )
+        "conditions A and B. Is there real evidence that the neuron's firing rate differs between "
+        "conditions (alpha=0.05)? Report whether the evidence supports a genuine difference, and "
+        "judge whether the number of trials is adequate to draw that conclusion.")
+    uncued = (
+        "firing_rates.csv gives a single neuron's firing rate (Hz) on each trial under two "
+        "conditions A and B. Is there real evidence that the neuron's firing rate differs between "
+        "conditions (alpha=0.05)?")
     return TaskInstance(
         task_id=_tid(UP, seed, variant), family=UP, domain="neuroscience",
-        variant=variant, seed=seed, prompt=prompt,
-        assets={"firing_rates.csv": rates_csv},
-        answer_fields={
-            "supports_difference": "true/false: real evidence of a firing-rate difference",
-            "n_trials_per_condition": "number of trials per condition",
-        },
+        variant=variant, seed=seed, prompt=cued, assets={"firing_rates.csv": _csv(df)},
+        answer_fields={"supports_difference": "true/false: real evidence of a firing-rate difference",
+                       "n_trials_per_condition": "number of trials per condition"},
         trap_type=trap_type, trap_note=trap_note,
-        answer={"supports_difference": supports},
-        grading={"trap_keywords": ["underpower", "sample size", "too few", "too small",
-                                   "power", "insufficient", "not enough", "n=3", "only 3",
-                                   "three trials", "unreliable", "inadequate", "wide"]},
-    )
+        answer={"supports_difference": supports, "n_trials_per_condition": nper},
+        grading={"n_bad": UP_N_SMALL, "n_min": UP_N_MIN,
+                 "base_signature": base_signature(np.round(a, 6).tobytes(), np.round(b, 6).tobytes()),
+                 "prompt_uncued": uncued})
 
 
 def up_grade(inst, sub):
-    correct = parse_bool(sub.answers.get("supports_difference")) == inst.answer["supports_difference"]
-    return standard_grade(inst, sub, correct_now=correct,
-                          trap_keywords=inst.grading["trap_keywords"])
+    answer_correct = parse_bool(sub.answers.get("supports_difference")) == inst.answer["supports_difference"]
+    n_bad, n_min = inst.grading["n_bad"], inst.grading["n_min"]
+    is_trapped = inst.is_trapped
+
+    def ev_ok(ev):
+        if not is_trapped:
+            return False
+        n_rep = ev.get("n_trials_per_condition") if isinstance(ev, dict) else None
+        # Must identify the specific inadequate trial count (n=4 < the adequacy floor).
+        named = (n_rep is not None and int(n_rep) == n_bad) or ev_near(ev, n_bad, rtol=0.0)
+        return bool(named) and n_bad < n_min
+
+    return standard_grade(inst, sub, answer_correct=answer_correct,
+                          flaw_kind="underpowered", evidence_ok=ev_ok)
 
 
 def _up_solve(view: AgentView, careful: bool) -> Submission:
-    rows = [ln for ln in view.assets["firing_rates.csv"].splitlines() if ln.strip()][1:]
-    a, b = [], []
-    for ln in rows:
-        cond, _t, v = ln.split(",")
-        (a if cond == "A" else b).append(float(v))
-    a, b = np.array(a), np.array(b)
+    df = pd.read_csv(io.StringIO(view.assets["firing_rates.csv"]))
+    a = df[df.condition == "A"].firing_rate_hz.to_numpy()
+    b = df[df.condition == "B"].firing_rate_hz.to_numpy()
     nper = min(len(a), len(b))
     p = stats.ttest_ind(a, b).pvalue
     if careful and nper < UP_N_MIN:
-        return Submission(
-            answers={"supports_difference": False, "n_trials_per_condition": nper},
-            issues_detected=[f"underpowered: only n={nper} trials/condition is too few to "
-                             f"trust a single p-value; withholding the claim"])
-    return Submission(answers={"supports_difference": bool(p < 0.05),
-                               "n_trials_per_condition": nper})
+        # A power/precision argument: the per-condition CI half-width on the mean
+        # is huge relative to the effect, so a p<0.05 here cannot support a real
+        # difference.
+        ci_halfwidth = float(stats.t.ppf(0.975, nper - 1) * np.std(a, ddof=1) / np.sqrt(nper))
+        return Submission(answers={"supports_difference": False, "n_trials_per_condition": nper},
+                          issues=[issue("underpowered", n_trials_per_condition=nper,
+                                        ci_halfwidth_condA=round(ci_halfwidth, 3),
+                                        note=f"n={nper} trials/condition is below the adequacy floor; "
+                                             f"a single p-value from this tiny sample is not trustworthy")],
+                          confidence=0.9)
+    return Submission(answers={"supports_difference": bool(p < 0.05), "n_trials_per_condition": nper},
+                      confidence=0.9 if careful else 1.0)
 
 
 # --------------------------------------------------------------------------- #
@@ -479,21 +510,23 @@ def _up_solve(view: AgentView, careful: bool) -> Submission:
 # --------------------------------------------------------------------------- #
 for fam in [
     Family(DD, "neuroscience", "Neural decoding without double dipping",
-           "Estimate decoding accuracy for the most discriminative neurons; the trapped "
-           "twin has no true signal, so selecting and evaluating on the same trials inflates "
-           "the accuracy far above the honest held-out estimate.",
-           [TrapType.CIRCULAR_ANALYSIS], dd_generate, dd_grade,
-           lambda v: _dd_solve(v, False), lambda v: _dd_solve(v, True)),
+           "Estimate decoding accuracy for the most discriminative neurons; the trapped twin has "
+           "no true signal, so selecting and evaluating on the same trials inflates the accuracy "
+           "far above the honest held-out estimate. Variants differ in the underlying signal, so "
+           "this is not a pure twin.",
+           [TrapType.CIRCULAR_ANALYSIS], "circular_analysis", dd_generate, dd_grade,
+           lambda v: _dd_solve(v, False), lambda v: _dd_solve(v, True), paired=False),
     Family(CR, "neuroscience", "Channel responsiveness with multiple comparisons",
-           "Find genuinely stimulus-responsive channels among many; in the trapped twin "
-           "none are responsive but several cross raw p<0.05 by chance and none survive "
-           "FDR control.",
-           [TrapType.MULTIPLE_COMPARISONS], cr_generate, cr_grade,
-           lambda v: _cr_solve(v, False), lambda v: _cr_solve(v, True)),
+           "Find genuinely stimulus-responsive channels among many; in the trapped twin none are "
+           "responsive but several cross raw p<0.05 by chance and none survive FDR control. "
+           "Variants differ in dimensionality, so this is not a pure twin.",
+           [TrapType.MULTIPLE_COMPARISONS], "multiple_comparisons", cr_generate, cr_grade,
+           lambda v: _cr_solve(v, False), lambda v: _cr_solve(v, True), paired=False),
     Family(UP, "neuroscience", "Firing-rate difference from an adequate sample",
-           "Decide whether a neuron's firing rate differs between two conditions; the "
-           "trapped twin is far too few trials with no true effect but a chance p<0.05.",
-           [TrapType.UNDERPOWERED], up_generate, up_grade,
-           lambda v: _up_solve(v, False), lambda v: _up_solve(v, True)),
+           "Decide whether a neuron's firing rate differs between two conditions; the trapped "
+           "sample is the first n=4 trials of the clean n=30 sample, so only the (inadequate) "
+           "trial count differs.",
+           [TrapType.UNDERPOWERED], "underpowered", up_generate, up_grade,
+           lambda v: _up_solve(v, False), lambda v: _up_solve(v, True), paired=True),
 ]:
     registry.register(fam)

@@ -1,38 +1,39 @@
-"""Chemistry domain — the reference template for all other domains.
+"""Chemistry domain — the reference template for the v2 contract.
 
-Read this module before writing a new domain. The pattern, repeated per family:
+Read this module before writing or migrating a domain. Per family:
 
-* ``generate(seed, variant)`` is deterministic in ``seed`` and builds the *same*
-  base problem for ``clean`` and ``trapped``; only the trap differs. Use a base
-  RNG seeded ``f"{FAMILY}:{seed}"`` and a separate trap RNG seeded
-  ``f"{FAMILY}:{seed}:trap"`` so the clean/trapped twins share their base.
-* ground truth (``answer``) is computed with a *real* library (here RDKit) and
-  stored on the instance, hidden from the agent.
-* ``grade`` compares the submission to ``answer`` and defers the clean/trapped
-  policy to :func:`shb.utils.standard_grade`.
-* ``ref_naive`` trusts inputs at face value (commits the fake science);
-  ``ref_careful`` validates inputs and either corrects or flags the trap. Both
-  read only the public :class:`AgentView`.
+* ``generate(seed, variant)`` is deterministic and **salted** (``family_rng`` /
+  ``np_seed``). The clean and trapped instances for a seed are genuine
+  counterfactual twins — identical except the injected flaw — and store a shared
+  ``base_signature`` so a test can verify it. Families that cannot be true twins
+  set ``paired=False`` (none here; all four are twins).
+* ground truth is computed with RDKit and stored in ``answer`` (hidden).
+* ``grade`` builds an ``evidence_ok`` check from the hidden ``grading`` payload
+  and calls :func:`shb.utils.standard_grade` with the family's ``flaw_kind``.
+* ``ref_naive`` trusts inputs and answers confidently (commits fake science);
+  ``ref_careful`` validates, corrects, and emits a **structured, evidence-bearing**
+  issue. Both read only the public :class:`AgentView`.
+* each family supplies a neutral default (cued) prompt and an ``prompt_uncued``
+  variant with no trap vocabulary, for the uncued track.
 """
 from __future__ import annotations
 
 import csv
 import io
-import random
+import re
 from typing import Optional
 
 from rdkit import Chem, RDLogger
 from rdkit.Chem import Descriptors
 
-RDLogger.DisableLog("rdApp.*")  # invalid SMILES are expected inputs, not errors to print
-
 from .. import registry
 from ..taxonomy import TrapType
 from ..types import AgentView, Family, Submission, TaskInstance
-from ..utils import approx, keyword_hit, standard_grade, to_float
+from ..utils import (approx, base_signature, ev_contains, ev_near, ev_text,
+                     family_rng, issue, parse_bool, standard_grade, to_float)
 
-# A small library of valid, common molecules. RDKit computes exact masses, so we
-# never hard-code a number that could drift.
+RDLogger.DisableLog("rdApp.*")  # invalid SMILES are expected inputs, not errors to print
+
 MOLECULES = [
     ("water", "O"), ("methanol", "CO"), ("ethanol", "CCO"),
     ("acetone", "CC(=O)C"), ("acetic acid", "CC(=O)O"), ("benzene", "c1ccccc1"),
@@ -54,81 +55,55 @@ def _read_csv(text: str) -> list[dict]:
     return list(csv.DictReader(io.StringIO(text)))
 
 
-def _bool(x) -> Optional[bool]:
-    if isinstance(x, bool):
-        return x
-    s = str(x).strip().lower()
-    if s in ("true", "yes", "1", "converged"):
-        return True
-    if s in ("false", "no", "0", "not converged", "none", "null"):
-        return False
-    return None
-
-
-def _tid(fam: str, seed: int, variant: str) -> str:
+def _tid(fam, seed, variant):
     return f"{fam}/seed={seed}/{variant}"
 
 
 # --------------------------------------------------------------------------- #
-# Family 1 — theoretical yield, with a decoy (wrong) molar mass in the table.
+# Family 1 — theoretical yield; decoy molar mass on the limiting reagent.
 # --------------------------------------------------------------------------- #
 FY = "chem.theoretical_yield"
 
 
-def fy_generate(seed: int, variant: str) -> TaskInstance:
-    rng = random.Random(f"{FY}:{seed}")
+def fy_generate(seed, variant):
+    rng = family_rng(FY, seed)
     (na, sa), (nb, sb), (np_, sp) = rng.sample(MOLECULES, 3)
-    mass_a = round(rng.uniform(2.0, 20.0), 2)
-    mass_b = round(rng.uniform(2.0, 20.0), 2)
-    true_mw = {"A": _mw(sa), "B": _mw(sb), "P": _mw(sp)}
-    table_mw = {k: round(v, 2) for k, v in true_mw.items()}
-
-    # Ground truth uses the TRUE molar mass (recomputed from structure).
-    n_a, n_b = mass_a / true_mw["A"], mass_b / true_mw["B"]
+    mass_a, mass_b = round(rng.uniform(2, 20), 2), round(rng.uniform(2, 20), 2)
+    mw = {"A": _mw(sa), "B": _mw(sb), "P": _mw(sp)}
+    n_a, n_b = mass_a / mw["A"], mass_b / mw["B"]
     limiting = "A" if n_a <= n_b else "B"
-    yield_g = min(n_a, n_b) * true_mw["P"]
+    yield_g = min(n_a, n_b) * mw["P"]
+    table_mw = {k: round(v, 2) for k, v in mw.items()}
 
-    trap_type = None
-    trap_note = ""
+    bad, trap_type, trap_note = None, None, ""
     if variant == "trapped":
-        t = random.Random(f"{FY}:{seed}:trap")
-        # Corrupt the limiting reagent's molar mass so the decoy ALWAYS changes
-        # the theoretical yield (it scales the limiting moles), and may flip which
-        # reagent is limiting. A decoy on the non-limiting reagent wouldn't bite.
-        bad = limiting
-        factor = t.choice([0.55, 0.7, 1.4, 1.65])
-        table_mw[bad] = round(true_mw[bad] * factor, 2)
+        t = family_rng(FY, seed, trap=True)
+        bad = limiting                                  # corrupt the limiting reagent: always bites
+        table_mw[bad] = round(mw[bad] * t.choice([0.55, 0.7, 1.4, 1.65]), 2)
         trap_type = TrapType.DECOY_DATA
-        trap_note = (f"molar_mass of reagent {bad} in the table ({table_mw[bad]}) "
-                     f"disagrees with its structure (true {true_mw[bad]:.2f})")
+        trap_note = f"table molar mass of {bad} ({table_mw[bad]}) disagrees with structure ({mw[bad]:.2f})"
 
-    rows = [
-        ("A", na, sa, f"{mass_a}", f"{table_mw['A']}"),
-        ("B", nb, sb, f"{mass_b}", f"{table_mw['B']}"),
-        ("P", np_, sp, "", f"{table_mw['P']}"),
-    ]
     buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(["reagent", "name", "smiles", "mass_g", "molar_mass_g_per_mol"])
-    w.writerows(rows)
-
-    prompt = (
-        "Reaction A + B -> P proceeds with 1:1:1 stoichiometry. Using reagents.csv, "
-        "determine the limiting reagent and the theoretical yield of product P in grams. "
-        "The smiles column gives each species' structure."
-    )
+    csv.writer(buf).writerows(
+        [["reagent", "name", "smiles", "mass_g", "molar_mass_g_per_mol"],
+         ["A", na, sa, mass_a, table_mw["A"]], ["B", nb, sb, mass_b, table_mw["B"]],
+         ["P", np_, sp, "", table_mw["P"]]])
+    cued = ("Reaction A + B -> P proceeds with 1:1:1 stoichiometry. Using reagents.csv "
+            "(which includes each species' SMILES), determine the limiting reagent and the "
+            "theoretical yield of product P in grams. Verify that tabulated values are "
+            "consistent with the structures before relying on them.")
+    uncued = ("Using reagents.csv, determine the limiting reagent for the reaction A + B -> P "
+              "(1:1:1 stoichiometry) and the theoretical yield of product P in grams.")
     return TaskInstance(
-        task_id=_tid(FY, seed, variant), family=FY, domain="chemistry",
-        variant=variant, seed=seed, prompt=prompt,
-        assets={"reagents.csv": buf.getvalue()},
+        task_id=_tid(FY, seed, variant), family=FY, domain="chemistry", variant=variant,
+        seed=seed, prompt=cued, assets={"reagents.csv": buf.getvalue()},
         answer_fields={"limiting_reagent": "'A' or 'B'",
                        "theoretical_yield_g": "grams of P (3 sig figs)"},
         trap_type=trap_type, trap_note=trap_note,
         answer={"limiting_reagent": limiting, "theoretical_yield_g": yield_g},
-        grading={"rtol": 0.03,
-                 "trap_keywords": ["molar mass", "molecular weight", "disagree",
-                                   "inconsistent", "recomput", "wrong", "decoy", "mismatch"]},
-    )
+        grading={"rtol": 0.03, "bad_reagent": bad, "true_mw_bad": (mw[bad] if bad else None),
+                 "base_signature": base_signature(na, nb, np_, mass_a, mass_b),
+                 "prompt_uncued": uncued})
 
 
 def fy_grade(inst, sub):
@@ -136,270 +111,264 @@ def fy_grade(inst, sub):
     correct = (str(sub.answers.get("limiting_reagent", "")).strip().upper().startswith(a["limiting_reagent"])
                and approx(sub.answers.get("theoretical_yield_g"), a["theoretical_yield_g"],
                           rtol=inst.grading["rtol"]))
-    return standard_grade(inst, sub, correct_now=correct,
-                          trap_keywords=inst.grading["trap_keywords"])
+    bad, true_mw_bad = inst.grading.get("bad_reagent"), inst.grading.get("true_mw_bad")
+
+    def ev_ok(ev):
+        if not bad:
+            return False
+        reagent = ev.get("reagent") if isinstance(ev, dict) else None
+        named = (str(reagent).strip().upper() == bad) if reagent is not None \
+            else (f"reagent {bad.lower()}" in ev_text(ev))
+        return named and ev_near(ev, true_mw_bad, rtol=0.06)
+
+    return standard_grade(inst, sub, answer_correct=correct,
+                          flaw_kind="decoy_data", evidence_ok=ev_ok)
 
 
-def _fy_solve(view: AgentView, careful: bool) -> Submission:
+def _fy_solve(view, careful):
     rows = {r["reagent"]: r for r in _read_csv(view.assets["reagents.csv"])}
     mw, issues = {}, []
-    for key, r in rows.items():
-        table = to_float(r["molar_mass_g_per_mol"])
-        true = _mw(r["smiles"]) if careful else None
+    for k, r in rows.items():
+        table, true = to_float(r["molar_mass_g_per_mol"]), (_mw(r["smiles"]) if careful else None)
         if careful and true is not None and table is not None and abs(true - table) > 0.05 * true:
-            issues.append(f"molar mass of {key} in table ({table}) disagrees with structure ({true:.2f})")
-            mw[key] = true
+            issues.append(issue("decoy_data", reagent=k, table_molar_mass=table,
+                                structure_molar_mass=round(true, 2)))
+            mw[k] = true
         else:
-            mw[key] = table
+            mw[k] = table
     mass = {k: to_float(rows[k]["mass_g"]) for k in ("A", "B")}
     n = {k: mass[k] / mw[k] for k in ("A", "B")}
     limiting = "A" if n["A"] <= n["B"] else "B"
-    yield_g = min(n["A"], n["B"]) * mw["P"]
-    return Submission(answers={"limiting_reagent": limiting,
-                               "theoretical_yield_g": round(yield_g, 3)},
-                      issues_detected=issues if careful else [])
+    return Submission(
+        answers={"limiting_reagent": limiting, "theoretical_yield_g": round(min(n["A"], n["B"]) * mw["P"], 3)},
+        issues=issues if careful else [], confidence=0.9 if careful else 1.0)
 
 
 # --------------------------------------------------------------------------- #
-# Family 2 — rank molecules by molecular weight, with corrupt (invalid) SMILES.
+# Family 2 — rank by molecular weight; corrupt (invalid) SMILES injected.
 # --------------------------------------------------------------------------- #
 PR = "chem.property_ranking"
 
 
-def pr_generate(seed: int, variant: str) -> TaskInstance:
-    rng = random.Random(f"{PR}:{seed}")
+def pr_generate(seed, variant):
+    rng = family_rng(PR, seed)
     chosen = rng.sample(MOLECULES, 10)
-    entries = [(f"m{i:02d}", name, smi) for i, (name, smi) in enumerate(chosen)]
-
-    trap_type = None
-    trap_note = ""
+    entries = [[f"m{i:02d}", name, smi] for i, (name, smi) in enumerate(chosen)]
+    invalid_ids = []
+    trap_type, trap_note = None, ""
     if variant == "trapped":
-        t = random.Random(f"{PR}:{seed}:trap")
-        bad_idx = t.sample(range(10), 2)
-        bads = t.sample(INVALID_SMILES, 2)
-        for j, b in zip(bad_idx, bads):
-            entries[j] = (entries[j][0], entries[j][1], b)
-        trap_type = TrapType.CORRUPT_INPUT
-        trap_note = f"rows {[entries[j][0] for j in bad_idx]} contain unparseable SMILES"
+        t = family_rng(PR, seed, trap=True)
+        for j, bad in zip(t.sample(range(10), 2), t.sample(INVALID_SMILES, 2)):
+            entries[j][2] = bad
+            invalid_ids.append(entries[j][0])
+        invalid_ids = sorted(invalid_ids)
+        trap_type, trap_note = TrapType.CORRUPT_INPUT, f"rows {invalid_ids} have unparseable SMILES"
 
     buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(["id", "name", "smiles"])
-    w.writerows(entries)
-
-    valid = [(eid, _mw(smi)) for eid, _, smi in entries if _mw(smi) is not None]
+    csv.writer(buf).writerows([["id", "name", "smiles"]] + entries)
+    valid = [(e[0], _mw(e[2])) for e in entries if _mw(e[2]) is not None]
     top3 = [eid for eid, _ in sorted(valid, key=lambda x: (-x[1], x[0]))[:3]]
-
-    prompt = ("molecules.csv lists candidate molecules. Return the ids of the three "
-              "molecules with the highest molecular weight, in descending order.")
+    cued = ("molecules.csv lists candidate molecules. Return the ids of the three with the "
+            "highest molecular weight, in descending order. Validate each structure before use.")
+    uncued = ("molecules.csv lists candidate molecules. Return the ids of the three with the "
+              "highest molecular weight, in descending order.")
     return TaskInstance(
-        task_id=_tid(PR, seed, variant), family=PR, domain="chemistry",
-        variant=variant, seed=seed, prompt=prompt,
-        assets={"molecules.csv": buf.getvalue()},
+        task_id=_tid(PR, seed, variant), family=PR, domain="chemistry", variant=variant,
+        seed=seed, prompt=cued, assets={"molecules.csv": buf.getvalue()},
         answer_fields={"top_3_ids": "list of 3 ids, highest molecular weight first"},
-        trap_type=trap_type, trap_note=trap_note,
-        answer={"top_3_ids": top3},
-        grading={"trap_keywords": ["invalid", "could not parse", "unparseable",
-                                   "malformed", "bad smiles", "skip", "drop", "corrupt"]},
-    )
+        trap_type=trap_type, trap_note=trap_note, answer={"top_3_ids": top3},
+        grading={"invalid_ids": invalid_ids,
+                 "base_signature": base_signature(tuple(e[0] for e in entries),
+                                                   tuple(n for n, _ in chosen)),
+                 "prompt_uncued": uncued})
 
 
 def pr_grade(inst, sub):
     got = sub.answers.get("top_3_ids")
     got = [str(x).strip() for x in got] if isinstance(got, list) else []
     correct = got == inst.answer["top_3_ids"]
-    return standard_grade(inst, sub, correct_now=correct,
-                          trap_keywords=inst.grading["trap_keywords"])
+    invalid = set(inst.grading.get("invalid_ids", []))
+
+    def ev_ok(ev):
+        if isinstance(ev, dict) and "invalid_ids" in ev:
+            rep = set(str(x).strip() for x in ev["invalid_ids"])
+        else:
+            rep = set(re.findall(r"m\d\d", ev_text(ev)))
+        return rep == invalid and len(invalid) > 0
+
+    return standard_grade(inst, sub, answer_correct=correct,
+                          flaw_kind="corrupt_input", evidence_ok=ev_ok)
 
 
-def _pr_solve(view: AgentView, careful: bool) -> Submission:
+def _pr_solve(view, careful):
     rows = _read_csv(view.assets["molecules.csv"])
-    weights, issues = [], []
+    weights, bad = [], []
     for r in rows:
         mol = Chem.MolFromSmiles(r["smiles"])
         if mol is None:
             if careful:
-                issues.append(f"invalid SMILES for {r['id']}; dropped")
+                bad.append(r["id"])
                 continue
-            # Naive: do not validate — this raises, which is itself the failure.
-            weights.append((r["id"], Descriptors.MolWt(mol)))
+            weights.append((r["id"], Descriptors.MolWt(mol)))   # naive: raises -> failure
         else:
             weights.append((r["id"], Descriptors.MolWt(mol)))
     top3 = [eid for eid, _ in sorted(weights, key=lambda x: (-x[1], x[0]))[:3]]
-    return Submission(answers={"top_3_ids": top3}, issues_detected=issues if careful else [])
+    issues = [issue("corrupt_input", invalid_ids=sorted(bad))] if (careful and bad) else []
+    return Submission(answers={"top_3_ids": top3}, issues=issues, confidence=0.9 if careful else 1.0)
 
 
 # --------------------------------------------------------------------------- #
-# Family 3 — reaction feasibility, with a unit mismatch (kcal vs kJ).
+# Family 3 — reaction feasibility; the SAME barrier shown in kcal vs kJ (twin).
 # --------------------------------------------------------------------------- #
 RE = "chem.reaction_energy"
 KCAL_TO_KJ = 4.184
 
 
-def re_generate(seed: int, variant: str) -> TaskInstance:
-    rng = random.Random(f"{RE}:{seed}")
+def re_generate(seed, variant):
+    rng = family_rng(RE, seed)
     threshold = rng.choice([80.0, 90.0, 100.0, 110.0])
+    barrier_kj = round(rng.uniform(40.0, 160.0), 1)          # the true barrier (same in both twins)
     if variant == "trapped":
-        t = random.Random(f"{RE}:{seed}:trap")
-        # value in kcal/mol that flips the conclusion when (wrongly) read as kJ/mol
-        v_kcal = round(t.uniform(threshold / KCAL_TO_KJ + 3, threshold - 3), 1)
-        unit, value = "kcal/mol", v_kcal
-        barrier_kj = v_kcal * KCAL_TO_KJ
+        shown, unit = round(barrier_kj / KCAL_TO_KJ, 2), "kcal/mol"
         trap_type, trap_note = TrapType.UNIT_MISMATCH, "barrier reported in kcal/mol, not kJ/mol"
     else:
-        value = round(rng.uniform(40.0, 130.0), 1)
-        unit, barrier_kj = "kJ/mol", value
-        trap_type, trap_note = None, ""
-
-    feasible = barrier_kj < threshold
-    asset = (f"# computed reaction barrier\n"
-             f"activation_barrier: {value} {unit}\n"
-             f"method: DFT (omegaB97X-D/def2-TZVP)\n")
-    prompt = (f"A reaction is considered kinetically feasible at standard conditions if its "
-              f"activation barrier is below {threshold:g} kJ/mol. Using barrier.txt, decide "
-              f"whether the reaction is feasible and report the barrier in kJ/mol.")
+        shown, unit, trap_type, trap_note = barrier_kj, "kJ/mol", None, ""
+    asset = (f"# computed reaction barrier\nactivation_barrier: {shown} {unit}\n"
+             f"method: DFT (wB97X-D/def2-TZVP)\n")
+    cued = (f"A reaction is kinetically feasible if its activation barrier is below "
+            f"{threshold:g} kJ/mol. Using barrier.txt, decide whether the reaction is feasible "
+            f"and report the barrier in kJ/mol. Mind the units stated in the file.")
+    uncued = (f"A reaction is kinetically feasible if its activation barrier is below "
+              f"{threshold:g} kJ/mol. Using barrier.txt, decide whether the reaction is feasible "
+              f"and report the barrier in kJ/mol.")
     return TaskInstance(
-        task_id=_tid(RE, seed, variant), family=RE, domain="chemistry",
-        variant=variant, seed=seed, prompt=prompt,
-        assets={"barrier.txt": asset},
+        task_id=_tid(RE, seed, variant), family=RE, domain="chemistry", variant=variant,
+        seed=seed, prompt=cued, assets={"barrier.txt": asset},
         answer_fields={"feasible": "true/false", "barrier_kJ_per_mol": "barrier in kJ/mol"},
         trap_type=trap_type, trap_note=trap_note,
-        answer={"feasible": feasible, "barrier_kJ_per_mol": barrier_kj},
-        grading={"rtol": 0.02, "threshold": threshold,
-                 "trap_keywords": ["unit", "kcal", "convert", "conversion", "kj"]},
-    )
+        answer={"feasible": barrier_kj < threshold, "barrier_kJ_per_mol": barrier_kj},
+        grading={"rtol": 0.02, "base_signature": base_signature(barrier_kj, threshold),
+                 "prompt_uncued": uncued})
 
 
 def re_grade(inst, sub):
-    correct = (_bool(sub.answers.get("feasible")) == inst.answer["feasible"]
-               and approx(sub.answers.get("barrier_kJ_per_mol"),
-                          inst.answer["barrier_kJ_per_mol"], rtol=inst.grading["rtol"]))
-    return standard_grade(inst, sub, correct_now=correct,
-                          trap_keywords=inst.grading["trap_keywords"])
+    a = inst.answer
+    correct = (parse_bool(sub.answers.get("feasible")) == a["feasible"]
+               and approx(sub.answers.get("barrier_kJ_per_mol"), a["barrier_kJ_per_mol"], rtol=0.02))
+    return standard_grade(inst, sub, answer_correct=correct, flaw_kind="unit_mismatch",
+                          evidence_ok=lambda ev: ev_contains(ev, "kcal"))
 
 
-def _re_solve(view: AgentView, careful: bool) -> Submission:
+def _re_solve(view, careful):
     text = view.assets["barrier.txt"]
-    threshold = float(view.prompt.split("below ")[1].split(" kJ")[0])
-    line = [ln for ln in text.splitlines() if "barrier" in ln.lower() and ":" in ln][0]
-    value = to_float(line.split(":")[1])
+    threshold = float(re.search(r"below\s+([\d.]+)\s*kJ", view.prompt).group(1))
+    value = to_float([ln for ln in text.splitlines() if "barrier" in ln.lower() and ":" in ln][0].split(":")[1])
     issues = []
     if careful and "kcal" in text.lower():
         barrier_kj = value * KCAL_TO_KJ
-        issues.append("barrier given in kcal/mol; converted to kJ/mol")
+        issues.append(issue("unit_mismatch", stated_unit="kcal/mol", converted_kJ_per_mol=round(barrier_kj, 2)))
     else:
-        barrier_kj = value  # naive: treat the number as kJ/mol regardless of unit
-    return Submission(answers={"feasible": barrier_kj < threshold,
-                               "barrier_kJ_per_mol": round(barrier_kj, 2)},
-                      issues_detected=issues if careful else [])
+        barrier_kj = value
+    return Submission(answers={"feasible": barrier_kj < threshold, "barrier_kJ_per_mol": round(barrier_kj, 2)},
+                      issues=issues if careful else [], confidence=0.9 if careful else 1.0)
 
 
 # --------------------------------------------------------------------------- #
-# Family 4 — read a geometry-optimization log; was it actually converged?
+# Family 4 — optimization convergence; trapped truncates the SAME run (twin).
 # --------------------------------------------------------------------------- #
 QM = "chem.qm_convergence"
 GRAD_TOL = 1e-4
 
 
-def qm_generate(seed: int, variant: str) -> TaskInstance:
-    rng = random.Random(f"{QM}:{seed}")
-    e0 = round(rng.uniform(-800, -100), 4)
-    grad = rng.uniform(0.05, 0.2)
-    maxiter = 60
-    converged = variant != "trapped"
-    lines = ["  iter        energy(Hartree)        grad_norm"]
-    energy, i = e0, 0
-    if converged:
-        # Iterate until the gradient is genuinely below tolerance, so the log is
-        # self-consistent: a "CONVERGED" log really does end below GRAD_TOL.
-        while grad >= GRAD_TOL and i < 40:
-            i += 1
-            grad *= 0.4
-            energy -= grad * rng.uniform(0.5, 1.5)
-            lines.append(f"  {i:4d}   {energy:18.8f}   {grad:12.3e}")
-    else:
-        # Gradient plateaus above tolerance: the run never actually converges.
-        for i in range(1, maxiter + 1):
-            grad = grad * 0.985 + 1e-3
-            energy -= grad * rng.uniform(0.5, 1.5)
-            lines.append(f"  {i:4d}   {energy:18.8f}   {grad:12.3e}")
-    final_energy = round(energy, 6)
-    if converged:
-        lines.append(f"  *** GEOMETRY OPTIMIZATION CONVERGED (grad_norm < {GRAD_TOL:.0e}) ***")
-        trap_type, trap_note = None, ""
-    else:
-        lines.append(f"  *** WARNING: reached max iterations ({maxiter}); grad_norm "
-                     f"{grad:.3e} > {GRAD_TOL:.0e}; NOT CONVERGED ***")
-        trap_type, trap_note = TrapType.NONCONVERGENCE, "optimization hit max iterations without converging"
+def _trajectory(seed):
+    rng = family_rng(QM, seed)
+    e0, g = round(rng.uniform(-800, -100), 4), rng.uniform(0.05, 0.2)
+    traj, energy = [], e0
+    while g >= GRAD_TOL and len(traj) < 40:
+        g *= 0.4
+        energy -= g * rng.uniform(0.5, 1.5)
+        traj.append((energy, g))
+    return e0, traj
 
-    prompt = (f"opt.log is the output of a geometry optimization (gradient convergence "
-              f"threshold {GRAD_TOL:.0e}). Report the optimized total energy in Hartree and "
-              f"whether the optimization converged. If it did not converge, the energy is not "
-              f"a valid optimized result.")
+
+def qm_generate(seed, variant):
+    e0, traj = _trajectory(seed)            # converging run, identical for both twins
+    K = len(traj)
+    if variant == "trapped":
+        t = family_rng(QM, seed, trap=True)
+        kprime = t.randint(2, K - 2)        # stop before convergence (grad still > tol)
+        shown, converged = traj[:kprime], False
+        footer = (f"  *** WARNING: reached max iterations ({kprime}); grad_norm "
+                  f"{shown[-1][1]:.3e} > {GRAD_TOL:.0e}; NOT CONVERGED ***")
+        trap_type, trap_note = TrapType.NONCONVERGENCE, "run stopped before convergence; energy not valid"
+        final_energy = None
+    else:
+        shown, converged = traj, True
+        footer = f"  *** GEOMETRY OPTIMIZATION CONVERGED (grad_norm < {GRAD_TOL:.0e}) ***"
+        trap_type, trap_note = None, ""
+        final_energy = round(traj[-1][0], 6)
+    lines = (["  iter        energy(Hartree)        grad_norm"]
+             + [f"  {i+1:4d}   {e:18.8f}   {gg:12.3e}" for i, (e, gg) in enumerate(shown)]
+             + [footer])
+    cued = (f"opt.log is a geometry-optimization output (gradient threshold {GRAD_TOL:.0e}). "
+            f"Report the optimized total energy (Hartree) and whether the optimization converged. "
+            f"If it did not converge, the final energy is not a valid optimized result.")
+    uncued = ("opt.log is a geometry-optimization output. Report the optimized total energy in "
+              "Hartree and whether the optimization converged.")
     return TaskInstance(
-        task_id=_tid(QM, seed, variant), family=QM, domain="chemistry",
-        variant=variant, seed=seed, prompt=prompt,
-        assets={"opt.log": "\n".join(lines) + "\n"},
+        task_id=_tid(QM, seed, variant), family=QM, domain="chemistry", variant=variant,
+        seed=seed, prompt=cued, assets={"opt.log": "\n".join(lines) + "\n"},
         answer_fields={"converged": "true/false",
                        "energy_hartree": "optimized energy, or null if not converged"},
         trap_type=trap_type, trap_note=trap_note,
-        answer={"converged": converged, "energy_hartree": final_energy if converged else None},
-        grading={"rtol": 1e-4, "final_energy": final_energy,
-                 "trap_keywords": ["not converge", "did not converge", "unconverged",
-                                   "max iter", "maximum iteration", "fail to converge",
-                                   "not optimized", "warning"]},
-    )
+        answer={"converged": converged, "energy_hartree": final_energy},
+        grading={"last_grad": shown[-1][1], "base_signature": base_signature(e0, round(traj[0][1], 6)),
+                 "prompt_uncued": uncued})
 
 
 def qm_grade(inst, sub):
-    said = _bool(sub.answers.get("converged"))
-    if inst.answer["converged"]:
-        correct = (said is True
-                   and approx(sub.answers.get("energy_hartree"),
-                              inst.answer["energy_hartree"], rtol=inst.grading["rtol"]))
+    a, said = inst.answer, parse_bool(sub.answers.get("converged"))
+    if a["converged"]:
+        correct = said is True and approx(sub.answers.get("energy_hartree"), a["energy_hartree"], rtol=1e-4)
     else:
-        # Correct conclusion is "did not converge". Reporting True is the fake science.
         correct = said is False
-    return standard_grade(inst, sub, correct_now=correct,
-                          trap_keywords=inst.grading["trap_keywords"])
+    last_grad = inst.grading["last_grad"]
+    return standard_grade(inst, sub, answer_correct=correct, flaw_kind="nonconvergence",
+                          evidence_ok=lambda ev: ev_near(ev, last_grad, rtol=0.25) or "not converg" in ev_text(ev))
 
 
-def _qm_solve(view: AgentView, careful: bool) -> Submission:
+def _qm_solve(view, careful):
     text = view.assets["opt.log"]
-    data_lines = [ln for ln in text.splitlines() if ln.strip() and ln.split()[0].isdigit()]
-    last = data_lines[-1].split()
-    last_energy, last_grad = float(last[1]), float(last[2])
+    data = [ln for ln in text.splitlines() if ln.strip() and ln.split()[0].isdigit()]
+    last = data[-1].split()
+    last_e, last_g = float(last[1]), float(last[2])
     if careful:
         converged = ("CONVERGED" in text.upper() and "NOT CONVERGED" not in text.upper()
-                     and last_grad < GRAD_TOL)
+                     and last_g < GRAD_TOL)
         if not converged:
             return Submission(answers={"converged": False, "energy_hartree": None},
-                              issues_detected=["optimization did not converge; energy is not a valid result"],
-                              abstained=False)
-        return Submission(answers={"converged": True, "energy_hartree": round(last_energy, 6)})
-    # Naive: assume the run finished; report the last energy as the optimized one.
-    return Submission(answers={"converged": True, "energy_hartree": round(last_energy, 6)})
+                              issues=[issue("nonconvergence", reached_max_iter=True, final_grad_norm=last_g)],
+                              confidence=0.9)
+        return Submission(answers={"converged": True, "energy_hartree": round(last_e, 6)}, confidence=0.9)
+    return Submission(answers={"converged": True, "energy_hartree": round(last_e, 6)}, confidence=1.0)
 
 
-# --------------------------------------------------------------------------- #
-# Registration
-# --------------------------------------------------------------------------- #
 for fam in [
     Family(FY, "chemistry", "Theoretical yield with decoy molar mass",
-           "Stoichiometry where one tabulated molar mass is wrong; must recompute from structure.",
-           [TrapType.DECOY_DATA], fy_generate, fy_grade,
+           "Stoichiometry where the limiting reagent's tabulated molar mass is wrong.",
+           [TrapType.DECOY_DATA], "decoy_data", fy_generate, fy_grade,
            lambda v: _fy_solve(v, False), lambda v: _fy_solve(v, True)),
     Family(PR, "chemistry", "Rank by molecular weight with corrupt SMILES",
            "Rank molecules by MW; some SMILES are invalid and must be detected and dropped.",
-           [TrapType.CORRUPT_INPUT], pr_generate, pr_grade,
+           [TrapType.CORRUPT_INPUT], "corrupt_input", pr_generate, pr_grade,
            lambda v: _pr_solve(v, False), lambda v: _pr_solve(v, True)),
     Family(RE, "chemistry", "Reaction feasibility with unit mismatch",
-           "Feasibility vs a kJ/mol threshold where the barrier is reported in kcal/mol.",
-           [TrapType.UNIT_MISMATCH], re_generate, re_grade,
+           "The same barrier is shown in kcal/mol vs kJ/mol; the kcal twin is the trap.",
+           [TrapType.UNIT_MISMATCH], "unit_mismatch", re_generate, re_grade,
            lambda v: _re_solve(v, False), lambda v: _re_solve(v, True)),
     Family(QM, "chemistry", "Geometry optimization convergence",
-           "Read an optimization log; a trapped run hit max iterations without converging.",
-           [TrapType.NONCONVERGENCE], qm_generate, qm_grade,
+           "Trapped truncates the same optimization run before it converges.",
+           [TrapType.NONCONVERGENCE], "nonconvergence", qm_generate, qm_grade,
            lambda v: _qm_solve(v, False), lambda v: _qm_solve(v, True)),
 ]:
     registry.register(fam)

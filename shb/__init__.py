@@ -11,12 +11,17 @@ from . import registry
 from .runner import run_benchmark, run_family, run_instance
 from .scoring import Scorecard, aggregate
 from .taxonomy import TRAP_META, TrapType
-from .types import Agent, AgentView, Family, Grade, Submission, TaskInstance
+from .types import (Agent, AgentView, Family, Grade, Submission, TaskInstance,
+                    allowed_issue_kinds, opaque_id)
+from .utils import (approx, base_signature, family_rng, issue, np_seed, parse_bool,
+                    standard_grade, to_float)
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "registry", "run_benchmark", "run_family", "run_instance",
     "Scorecard", "aggregate", "TRAP_META", "TrapType",
     "Agent", "AgentView", "Family", "Grade", "Submission", "TaskInstance",
+    "allowed_issue_kinds", "opaque_id", "approx", "base_signature", "family_rng",
+    "issue", "np_seed", "parse_bool", "standard_grade", "to_float",
 ]

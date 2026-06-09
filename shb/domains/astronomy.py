@@ -1,24 +1,30 @@
 """Astronomy domain — photometry, light-curve fitting, and magnitude/flux units.
 
-Mirrors :mod:`shb.domains.chemistry`. Per family:
+Migrated to the v2 contract; mirrors :mod:`shb.domains.chemistry` exactly. Three
+failure modes from bread-and-butter observational/computational astronomy:
 
-* ``generate(seed, variant)`` is deterministic in ``seed`` and builds the *same*
-  base problem for ``clean`` and ``trapped``; only the trap differs. A base RNG
-  is seeded ``f"{FAMILY}:{seed}"`` and a separate trap RNG ``f"{FAMILY}:{seed}:trap"``
-  so the clean/trapped twins share their base problem.
-* ground truth (``answer``) is computed at generate() with real libraries
-  (numpy / scipy / astropy units / astropy.stats.sigma_clip) and stored hidden
-  on the instance.
-* ``grade`` compares the submission to ``answer`` and defers the clean/trapped
-  policy to :func:`shb.utils.standard_grade`.
-* ``ref_naive`` trusts inputs at face value (commits the fake science);
-  ``ref_careful`` validates inputs and either corrects or flags the trap. Both
-  read only the public :class:`AgentView`.
+* aperture photometry where the trapped twin corrupts a few pixels of the SAME
+  postage stamp (saturated at the detector full-well, NaN, or negative) that must
+  be masked before averaging (CORRUPT_INPUT);
+* a transit-depth fit to the SAME light curve whose trapped twin removes the
+  in-transit samples, so the Gaussian-dip fit no longer converges and any reported
+  depth is meaningless (NONCONVERGENCE);
+* a detection check against a limiting magnitude where the SAME source brightness
+  is quoted as an AB magnitude in the clean twin and as a linear flux (nJy) in the
+  trapped twin, so unit-naive arithmetic flips the conclusion (UNIT_MISMATCH).
+
+Per family the clean and trapped instances for a seed are genuine counterfactual
+twins — identical except the one injected flaw — and store a shared
+``base_signature`` so a test can verify it. Determinism is **salted**: a base RNG
+``np_seed(FAM, seed)`` builds the shared problem and ``family_rng(FAM, seed,
+trap=True)`` / ``np_seed(FAM, seed, trap=True)`` injects the one flaw. Ground
+truth is computed with real numpy / scipy / astropy at ``generate`` time and
+stored hidden on the instance; the reference solvers read only the public
+:class:`AgentView`.
 """
 from __future__ import annotations
 
 import csv
-import hashlib
 import io
 import logging
 import warnings
@@ -32,7 +38,8 @@ from astropy.stats import sigma_clip
 from .. import registry
 from ..taxonomy import TrapType
 from ..types import AgentView, Family, Submission, TaskInstance
-from ..utils import approx, parse_bool, standard_grade, to_float
+from ..utils import (approx, base_signature, ev_contains, ev_near, ev_text,
+                     issue, np_seed, parse_bool, standard_grade, to_float)
 
 # Astronomy inputs deliberately contain NaNs / failed fits; silence the noise.
 logging.getLogger("astropy").setLevel(logging.ERROR)
@@ -41,13 +48,6 @@ np.seterr(all="ignore")
 
 # 16-bit detector full-well: a pixel at this value is saturated, not measured.
 SATURATION = 65535.0
-
-
-def _rng(seed_str: str) -> np.random.Generator:
-    # Hash the FULL string. A prefix-sharing scheme (e.g. low bytes mod 2**32)
-    # would collapse every seed of a family to one identical problem.
-    digest = hashlib.sha256(seed_str.encode()).digest()
-    return np.random.default_rng(int.from_bytes(digest[:8], "big"))
 
 
 def _tid(fam: str, seed: int, variant: str) -> str:
@@ -67,55 +67,58 @@ def _csv(header: list[str], rows: list[tuple]) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# Family 1 — aperture photometry with corrupt pixels (CORRUPT_INPUT).
-#   Mean source flux over an aperture; trapped twin has saturated/NaN/negative
-#   pixels that must be masked before averaging.
+# Family 1 — aperture photometry; the SAME stamp with corrupt pixels (twin).
 # --------------------------------------------------------------------------- #
+# Mean source counts over a photometric aperture. The clean postage stamp — the
+# base problem — is built from the base numpy stream and is IDENTICAL across the
+# twins. The trapped twin overwrites a handful of those pixels (saturated at the
+# full-well, NaN dead pixels, or negative counts) drawn from the trap stream; a
+# competent solver masks exactly those pixels before averaging.
 AP = "astro.aperture_photometry"
 
 
+def _valid_mask(arr: np.ndarray) -> np.ndarray:
+    return np.isfinite(arr) & (arr > 0.0) & (arr < SATURATION)
+
+
 def ap_generate(seed: int, variant: str) -> TaskInstance:
-    rng = _rng(f"{AP}:{seed}")
+    g = np.random.default_rng(np_seed(AP, seed))
     n_pix = 36  # a 6x6 postage stamp around the source, given as a flat list
-    # A flat-ish source: counts scattered tightly about a mean well below saturation.
-    true_mean = round(float(rng.uniform(8000.0, 22000.0)), 1)
+    # A flat-ish source: counts scattered tightly about a mean well below
+    # saturation. Built from the base stream so it is IDENTICAL across the twins.
+    true_mean = round(float(g.uniform(8000.0, 22000.0)), 1)
     noise = true_mean * 0.02
-    base = rng.normal(true_mean, noise, size=n_pix)
+    base = g.normal(true_mean, noise, size=n_pix)
     base = np.clip(base, 1.0, SATURATION - 5000.0)  # clean pixels: always valid
-    pixels = [round(float(v), 1) for v in base]
+    clean_pixels = [round(float(v), 1) for v in base]
 
     rtol = 0.01
-
-    def _valid_mean(px):
-        a = np.array(px, dtype=float)
-        m = np.isfinite(a) & (a > 0.0) & (a < SATURATION)
-        return float(np.mean(a[m]))
-
+    pixels = list(clean_pixels)
+    bad_idx: list[int] = []
     trap_type = None
     trap_note = ""
-    bad_idx: list[int] = []
     if variant == "trapped":
-        t = _rng(f"{AP}:{seed}:trap")
-        # Resample the corruption pattern (from the trap rng only) until the naive
-        # face-value average differs from the valid-pixel mean by clearly more than
-        # tolerance. The clean pixels — the base problem — are untouched; only which
-        # pixels are corrupted varies. The acceptance test uses the SAME valid-pixel
-        # mean the grader scores against, so a passing draw is guaranteed to bite.
+        t = np.random.default_rng(np_seed(AP, seed, trap=True))
+        # Corrupt a few of the SAME pixels. Resample the corruption pattern (from
+        # the trap stream only) until the naive face-value average differs from
+        # the valid-pixel mean by clearly more than tolerance, so a passing draw is
+        # guaranteed to bite. The clean pixels — the base problem — are untouched.
         for _ in range(200):
-            cand = list(pixels)
+            cand = list(clean_pixels)
             n_bad = int(t.integers(3, 6))  # 3..5 bad pixels
             idx = sorted(int(i) for i in t.choice(n_pix, size=n_bad, replace=False))
             kinds = list(t.choice(["saturated", "nan", "negative"], size=n_bad))
             kinds[0] = "saturated"  # at least one saturated pixel dominates upward
             for j, kind in zip(idx, kinds):
                 if kind == "saturated":
-                    cand[j] = SATURATION                      # hot/saturated pixel
+                    cand[j] = SATURATION                                # hot/saturated pixel
                 elif kind == "nan":
-                    cand[j] = float("nan")                    # dead pixel -> NaN
+                    cand[j] = float("nan")                              # dead pixel -> NaN
                 else:
                     cand[j] = round(-float(t.uniform(50.0, 800.0)), 1)  # negative count
-            naive_mean = float(np.nanmean(np.array(cand, dtype=float)))
-            valid_mean = _valid_mean(cand)
+            ca = np.array(cand, dtype=float)
+            naive_mean = float(np.nanmean(ca))
+            valid_mean = float(np.mean(ca[_valid_mask(ca)]))
             if abs(naive_mean - valid_mean) > 2.0 * rtol * abs(valid_mean):
                 pixels, bad_idx = cand, idx
                 break
@@ -125,35 +128,55 @@ def ap_generate(seed: int, variant: str) -> TaskInstance:
 
     # Ground truth: mean over VALID pixels only (NaN, <=0, and >=saturation excluded).
     arr = np.array(pixels, dtype=float)
-    valid = np.isfinite(arr) & (arr > 0.0) & (arr < SATURATION)
+    valid = _valid_mask(arr)
     true_flux = float(np.mean(arr[valid]))
 
     rows = [(i, ("nan" if not np.isfinite(p) else f"{p:g}")) for i, p in enumerate(pixels)]
-    prompt = (
+    cued = (
         "pixels.csv lists the per-pixel counts (ADU) inside the photometric aperture "
         "around a star, one row per pixel. The detector saturates at "
         f"{SATURATION:.0f} ADU and counts are physically non-negative. Report the mean "
-        "source count per pixel from the valid science pixels."
+        "source count per pixel from the valid science pixels. Check each pixel for "
+        "saturated, dead (NaN), or negative values before averaging."
+    )
+    uncued = (
+        "pixels.csv lists the per-pixel counts (ADU) inside the photometric aperture "
+        "around a star, one row per pixel. The detector saturates at "
+        f"{SATURATION:.0f} ADU. Report the mean source count per pixel."
     )
     return TaskInstance(
         task_id=_tid(AP, seed, variant), family=AP, domain="astronomy",
-        variant=variant, seed=seed, prompt=prompt,
+        variant=variant, seed=seed, prompt=cued,
         assets={"pixels.csv": _csv(["pixel", "counts_adu"], rows)},
         answer_fields={"mean_flux_adu": "mean counts/pixel over the valid science pixels"},
         trap_type=trap_type, trap_note=trap_note,
         answer={"mean_flux_adu": true_flux, "n_valid": int(valid.sum())},
-        grading={"rtol": rtol,
-                 "trap_keywords": ["saturat", "nan", "negative", "bad pixel", "invalid",
-                                   "mask", "sigma", "clip", "hot pixel", "dead pixel",
-                                   "corrupt", "exclud", "drop"]},
+        grading={"rtol": rtol, "bad_idx": bad_idx,
+                 "base_signature": base_signature(tuple(clean_pixels)),
+                 "prompt_uncued": uncued},
     )
 
 
 def ap_grade(inst, sub):
     correct = approx(sub.answers.get("mean_flux_adu"), inst.answer["mean_flux_adu"],
                      rtol=inst.grading["rtol"])
-    return standard_grade(inst, sub, correct_now=correct,
-                          trap_keywords=inst.grading["trap_keywords"])
+    bad = set(inst.grading.get("bad_idx", []))
+
+    def ev_ok(ev):
+        # Verify the SPECIFIC corruption against ground truth: the agent must name
+        # the exact set of bad-pixel indices (an exact set match), not a guessable
+        # subset. Accept either an explicit list field or indices in free text.
+        if isinstance(ev, dict) and "bad_indices" in ev:
+            rep = {int(x) for x in ev["bad_indices"]}
+        elif isinstance(ev, dict) and "indices" in ev:
+            rep = {int(x) for x in ev["indices"]}
+        else:
+            import re
+            rep = {int(x) for x in re.findall(r"\d+", ev_text(ev))}
+        return len(bad) > 0 and rep == bad
+
+    return standard_grade(inst, sub, answer_correct=correct,
+                          flaw_kind="corrupt_input", evidence_ok=ev_ok)
 
 
 def _ap_solve(view: AgentView, careful: bool) -> Submission:
@@ -171,37 +194,38 @@ def _ap_solve(view: AgentView, careful: bool) -> Submission:
         m = float(np.mean(arr))
         if not np.isfinite(m):
             m = float(np.nanmean(arr))
-        return Submission(answers={"mean_flux_adu": round(m, 2)})
+        return Submission(answers={"mean_flux_adu": round(m, 2)}, confidence=1.0)
 
     # Careful: mask physically invalid pixels (NaN, non-positive, at/above
-    # saturation), then sigma-clip the survivors for stray cosmic rays/outliers.
-    issues = []
+    # saturation), report exactly which pixel indices were bad, then sigma-clip the
+    # survivors for stray cosmic rays/outliers.
     finite = np.isfinite(arr)
-    nan_n = int((~finite).sum())
-    sat_n = int(np.sum(finite & (arr >= SATURATION)))
-    neg_n = int(np.sum(finite & (arr <= 0.0)))
-    valid_mask = finite & (arr > 0.0) & (arr < SATURATION)
-    if nan_n:
-        issues.append(f"{nan_n} NaN/dead pixel(s) masked")
-    if sat_n:
-        issues.append(f"{sat_n} saturated pixel(s) at/above {SATURATION:.0f} ADU masked")
-    if neg_n:
-        issues.append(f"{neg_n} negative (invalid) count pixel(s) masked")
-
-    good = arr[valid_mask]
+    valid = _valid_mask(arr)
+    bad_idx = sorted(int(i) for i in np.where(~valid)[0])
+    good = arr[valid]
     clipped = sigma_clip(good, sigma=4.0, maxiters=5)  # complementary outlier guard
-    n_clip = int(np.sum(clipped.mask))
-    if n_clip:
-        issues.append(f"{n_clip} outlier pixel(s) sigma-clipped")
     mean = float(np.ma.mean(clipped))
-    return Submission(answers={"mean_flux_adu": round(mean, 2)}, issues_detected=issues)
+    issues = []
+    if bad_idx:
+        issues.append(issue("corrupt_input", bad_indices=bad_idx,
+                            n_nan=int((~finite).sum()),
+                            n_saturated=int(np.sum(finite & (arr >= SATURATION))),
+                            n_negative=int(np.sum(finite & (arr <= 0.0))),
+                            reason="masked saturated/NaN/negative pixels before averaging"))
+    return Submission(answers={"mean_flux_adu": round(mean, 2)},
+                      issues=issues, confidence=0.9)
 
 
 # --------------------------------------------------------------------------- #
-# Family 2 — transit-depth fit to a light curve (NONCONVERGENCE).
-#   Fit an inverted Gaussian dip via curve_fit; trapped twin is flat noise-only
-#   data so the fit fails to converge and any "depth" is meaningless.
+# Family 2 — transit-depth fit; trapped removes the in-transit points (twin).
 # --------------------------------------------------------------------------- #
+# Fit a Gaussian dip to a light curve to measure the transit depth. The full base
+# light curve — a clear dip plus noise — is built from the base numpy stream and
+# is IDENTICAL across the twins. The trapped twin DELETES the in-transit samples
+# (the cadences inside the dip), leaving only out-of-transit baseline noise: there
+# is no longer a dip to fit, so the Gaussian-dip fit does not converge and any
+# reported depth is meaningless. This is a true counterfactual twin (same
+# underlying light curve; the trap removes data), so paired=True.
 LC = "astro.transit_fit"
 
 
@@ -210,77 +234,19 @@ def _dip(t, depth, t0, sigma, baseline):
     return baseline - depth * np.exp(-0.5 * ((t - t0) / sigma) ** 2)
 
 
-def lc_generate(seed: int, variant: str) -> TaskInstance:
-    rng = _rng(f"{LC}:{seed}")
-    n = 120
-    t = np.linspace(0.0, 10.0, n)
-    baseline = round(float(rng.uniform(0.95, 1.05)), 4)
-    noise_sd = round(float(rng.uniform(0.002, 0.006)), 4)
-
-    if variant == "trapped":
-        # No transit at all: pure flat noise. curve_fit cannot find a real dip.
-        # Draw the noise from the TRAP rng (base problem = baseline+noise_sd, shared
-        # with the clean twin) and reject the rare realization that admits a
-        # spurious reliable fit, so the careful solver genuinely reports failure.
-        t_rng = _rng(f"{LC}:{seed}:trap")
-        for _ in range(200):
-            flux = baseline + t_rng.normal(0.0, noise_sd, size=n)
-            if not _fit_depth(t, flux)[1]:  # confirm: no reliable dip
-                break
-        trap_type = TrapType.NONCONVERGENCE
-        trap_note = "light curve is flat noise (no transit); the dip fit does not converge"
-        true_depth = None
-        converged_truth = False
-    else:
-        # A clear, well-sampled dip: the fit converges with small covariance.
-        # Reject the rare draw whose fit is not cleanly reliable so competence holds.
-        for _ in range(200):
-            depth = round(float(rng.uniform(0.05, 0.12)), 4)
-            t0 = round(float(rng.uniform(3.5, 6.5)), 3)
-            sigma = round(float(rng.uniform(0.6, 1.0)), 3)
-            flux = _dip(t, depth, t0, sigma, baseline) + rng.normal(0.0, noise_sd, size=n)
-            fitted, ok, _ = _fit_depth(t, flux)
-            if ok:
-                break
-        # Ground-truth depth from the same converged fit the careful solver runs.
-        true_depth = fitted
-        trap_type, trap_note = None, ""
-        converged_truth = True
-
-    flux_r = [round(float(v), 5) for v in flux]
-    rows = [(round(float(ti), 4), fi) for ti, fi in zip(t, flux_r)]
-    prompt = (
-        "lightcurve.csv has columns time (days) and flux (normalized). A transit/eclipse "
-        "appears as a brief symmetric dip below the flat baseline. Fit a Gaussian dip "
-        "model to measure the transit depth (fractional flux drop). If a transit cannot "
-        "be reliably fit, report that instead of a depth."
-    )
-    return TaskInstance(
-        task_id=_tid(LC, seed, variant), family=LC, domain="astronomy",
-        variant=variant, seed=seed, prompt=prompt,
-        assets={"lightcurve.csv": _csv(["time", "flux"], rows)},
-        answer_fields={"converged": "true if a transit dip was reliably fit, else false",
-                       "transit_depth": "fitted depth (fractional), or null if no reliable fit"},
-        trap_type=trap_type, trap_note=trap_note,
-        answer={"converged": converged_truth, "transit_depth": true_depth},
-        grading={"rtol": 0.20,
-                 "trap_keywords": ["not converge", "did not converge", "fail to converge",
-                                   "no transit", "flat", "noise", "no dip", "unconverged",
-                                   "could not fit", "no reliable", "ill-conditioned",
-                                   "non-finite", "infinite", "no signal", "not detect"]},
-    )
-
-
 def _fit_depth(t: np.ndarray, flux: np.ndarray):
-    """Fit the dip model; return (depth, converged_bool, reason).
+    """Fit the dip model; return (depth, converged_bool, reason, perr).
 
     Convergence requires curve_fit to succeed AND return a finite covariance with
-    a sane relative uncertainty on the depth and a physically positive depth.
+    a depth that is well-determined (high SNR vs its own fit uncertainty) and well
+    above the residual noise floor. With the in-transit points removed there is no
+    dip, the depth is pinned near zero or its uncertainty explodes, and this fails.
     """
+    if t.size < 6:
+        return None, False, "too few samples to fit a transit", float("inf")
     baseline0 = float(np.median(flux))
     span = float(np.max(t) - np.min(t))
-    # Seed t0 at the deepest sample so a real dip is easy to find.
-    t0_0 = float(t[int(np.argmin(flux))])
+    t0_0 = float(t[int(np.argmin(flux))])  # seed t0 at the deepest sample
     depth0 = max(baseline0 - float(np.min(flux)), 1e-4)
     p0 = [depth0, t0_0, span / 20.0, baseline0]
     bounds = ([0.0, float(np.min(t)), 1e-3, baseline0 - 0.5],
@@ -288,22 +254,86 @@ def _fit_depth(t: np.ndarray, flux: np.ndarray):
     try:
         popt, pcov = curve_fit(_dip, t, flux, p0=p0, bounds=bounds, maxfev=4000)
     except (RuntimeError, ValueError, TypeError):
-        return None, False, "curve_fit failed to converge"
+        return None, False, "curve_fit failed to converge", float("inf")
     if not np.all(np.isfinite(pcov)):
-        return None, False, "non-finite covariance (fit ill-conditioned)"
+        return None, False, "non-finite covariance (fit ill-conditioned)", float("inf")
     depth, perr = float(popt[0]), float(np.sqrt(np.abs(pcov[0, 0])))
     resid_sd = float(np.std(flux - _dip(t, *popt)))
-    # Detection significance: the fitted depth must be many sigma above its own
-    # fit uncertainty AND well above the residual noise floor. A real transit
-    # (depth ~0.04-0.12, noise ~0.005) clears this by a wide margin; a chance
-    # downward fluctuation in flat noise does not. perr is the principled
-    # convergence signal — an ill-determined fit has perr comparable to depth.
+    # Detection significance: the fitted depth must be many sigma above its own fit
+    # uncertainty AND well above the residual noise floor. A real transit clears
+    # this by a wide margin; baseline-only noise (in-transit points removed) does
+    # not — perr is the principled convergence signal.
     snr = depth / perr if perr > 0 else float("inf")
     reliable = (depth > 1e-3 and snr >= 8.0 and depth >= 6.0 * resid_sd)
     if not reliable:
         return None, False, ("depth not significant vs uncertainty/noise "
-                             f"(SNR={snr:.1f}); no reliable transit")
-    return depth, True, ""
+                             f"(SNR={snr:.1f}); no reliable transit"), perr
+    return depth, True, "", perr
+
+
+def lc_generate(seed: int, variant: str) -> TaskInstance:
+    g = np.random.default_rng(np_seed(LC, seed))
+    n = 120
+    t_full = np.linspace(0.0, 10.0, n)
+    baseline = round(float(g.uniform(0.95, 1.05)), 4)
+    noise_sd = round(float(g.uniform(0.002, 0.006)), 4)
+
+    # The full base light curve — a clear dip plus noise — IDENTICAL across twins.
+    # Reject the rare draw whose fit is not cleanly reliable so competence holds.
+    for _ in range(200):
+        depth = round(float(g.uniform(0.05, 0.12)), 4)
+        t0 = round(float(g.uniform(3.5, 6.5)), 3)
+        sigma = round(float(g.uniform(0.6, 1.0)), 3)
+        flux_full = _dip(t_full, depth, t0, sigma, baseline) + g.normal(0.0, noise_sd, size=n)
+        fitted, ok, _, _ = _fit_depth(t_full, flux_full)
+        if ok:
+            break
+    flux_full = np.round(flux_full, 5)
+
+    if variant == "trapped":
+        # Remove the in-transit cadences (|t - t0| <= 2.5 sigma): the dip is gone,
+        # only out-of-transit baseline noise remains, so the fit cannot converge.
+        keep = np.abs(t_full - t0) > 2.5 * sigma
+        t_arr, flux_arr = t_full[keep], flux_full[keep]
+        _, conv, _, _ = _fit_depth(t_arr, flux_arr)  # confirm: no reliable dip
+        assert not conv, "trapped twin must not yield a reliable fit"
+        trap_type = TrapType.NONCONVERGENCE
+        trap_note = ("in-transit samples were removed; only out-of-transit baseline noise "
+                     "remains, so the dip fit does not converge and any depth is meaningless")
+        true_depth = None
+        converged_truth = False
+    else:
+        t_arr, flux_arr = t_full, flux_full
+        true_depth = fitted  # ground-truth depth from the same converged fit
+        trap_type, trap_note = None, ""
+        converged_truth = True
+
+    rows = [(round(float(ti), 4), round(float(fi), 5)) for ti, fi in zip(t_arr, flux_arr)]
+    cued = (
+        "lightcurve.csv has columns time (days) and flux (normalized). A transit/eclipse "
+        "appears as a brief symmetric dip below the flat baseline. Fit a Gaussian dip "
+        "model to measure the transit depth (fractional flux drop). If a transit cannot "
+        "be reliably fit (the fit does not converge), report that instead of a depth."
+    )
+    uncued = (
+        "lightcurve.csv has columns time (days) and flux (normalized). Fit a Gaussian dip "
+        "model to measure the transit depth (fractional flux drop). If a transit cannot be "
+        "reliably fit, report that instead of a depth."
+    )
+    return TaskInstance(
+        task_id=_tid(LC, seed, variant), family=LC, domain="astronomy",
+        variant=variant, seed=seed, prompt=cued,
+        assets={"lightcurve.csv": _csv(["time", "flux"], rows)},
+        answer_fields={"converged": "true if a transit dip was reliably fit, else false",
+                       "transit_depth": "fitted depth (fractional), or null if no reliable fit"},
+        trap_type=trap_type, trap_note=trap_note,
+        answer={"converged": converged_truth, "transit_depth": true_depth},
+        grading={"rtol": 0.20,
+                 "base_signature": base_signature(
+                     baseline, noise_sd, depth, t0, sigma,
+                     tuple(round(float(v), 5) for v in flux_full)),
+                 "prompt_uncued": uncued},
+    )
 
 
 def lc_grade(inst, sub):
@@ -315,25 +345,37 @@ def lc_grade(inst, sub):
     else:
         # Correct conclusion: the fit did NOT converge. Reporting a depth is fake science.
         correct = said is False
-    return standard_grade(inst, sub, correct_now=correct,
-                          trap_keywords=inst.grading["trap_keywords"])
+
+    def ev_ok(ev):
+        # Verify the SPECIFIC non-convergence against ground truth: the agent names
+        # that the fit did not converge / there is no reliable transit, or reports a
+        # non-finite covariance — not a guessable number.
+        return ("not converg" in ev_text(ev) or "did not converg" in ev_text(ev)
+                or "no reliable" in ev_text(ev) or "no transit" in ev_text(ev)
+                or "non-finite" in ev_text(ev) or "ill-condition" in ev_text(ev)
+                or "could not fit" in ev_text(ev) or "fail" in ev_text(ev))
+
+    return standard_grade(inst, sub, answer_correct=correct,
+                          flaw_kind="nonconvergence", evidence_ok=ev_ok)
 
 
 def _lc_solve(view: AgentView, careful: bool) -> Submission:
     rows = _read_csv(view.assets["lightcurve.csv"])
     t = np.array([to_float(r["time"]) for r in rows], dtype=float)
     flux = np.array([to_float(r["flux"]) for r in rows], dtype=float)
-    depth, converged, reason = _fit_depth(t, flux)
 
     if careful:
+        depth, converged, reason, _ = _fit_depth(t, flux)
         if not converged:
             return Submission(
                 answers={"converged": False, "transit_depth": None},
-                issues_detected=[f"transit fit did not converge: {reason}"])
-        return Submission(answers={"converged": True, "transit_depth": round(depth, 5)})
+                issues=[issue("nonconvergence", converged=False, reason=reason)],
+                confidence=0.9)
+        return Submission(answers={"converged": True, "transit_depth": round(depth, 5)},
+                          confidence=0.9)
 
     # Naive: run curve_fit and report whatever best-fit depth it returns, with no
-    # convergence/uncertainty check — even on flat noise it yields some number.
+    # convergence/uncertainty check — even baseline-only noise yields some number.
     baseline0 = float(np.median(flux))
     span = float(np.max(t) - np.min(t))
     p0 = [0.05, float(t[int(np.argmin(flux))]), span / 20.0, baseline0]
@@ -342,19 +384,25 @@ def _lc_solve(view: AgentView, careful: bool) -> Submission:
         naive_depth = float(popt[0])
     except Exception:
         naive_depth = float(np.median(flux) - np.min(flux))  # still asserts a number
-    return Submission(answers={"converged": True, "transit_depth": round(abs(naive_depth), 5)})
+    return Submission(answers={"converged": True, "transit_depth": round(abs(naive_depth), 5)},
+                      confidence=1.0)
 
 
 # --------------------------------------------------------------------------- #
-# Family 3 — brightness vs a detection threshold (UNIT_MISMATCH).
-#   A magnitude threshold; trapped twin gives the source brightness in linear
-#   flux instead of magnitudes, so the naive numeric comparison flips.
+# Family 3 — detection threshold; SAME brightness as magnitude vs flux (twin).
 # --------------------------------------------------------------------------- #
+# A survey detects a source if it is brighter than a limiting magnitude. Magnitudes
+# are logarithmic and INVERTED (brighter = smaller magnitude). The TRUE source
+# brightness, the magnitude limit, and the requested answer are identical across
+# the twins (same base RNG); only how the brightness is reported differs. Clean:
+# an AB magnitude, like the limit. Trapped: the SAME source as a linear flux density
+# (nJy). A unit-naive agent compares the large flux number to the magnitude limit
+# and flips the boolean conclusion; careful converts flux -> magnitude first. This
+# mirrors chemistry.reaction_energy / physics.kinetic_threshold.
 MG = "astro.brightness_threshold"
 
-# Pogson zero point used to convert between AB magnitude and a linear flux scale:
-#   mag = ZP - 2.5*log10(flux)  <=>  flux = 10**((ZP - mag)/2.5)
-# (the exact ZP is irrelevant to the conclusion; it cancels in the comparison).
+# Pogson zero point: mag = ZP - 2.5*log10(flux) <=> flux = 10**((ZP - mag)/2.5).
+# The exact ZP is irrelevant to the conclusion; it cancels in the comparison.
 ZP = 25.0
 
 
@@ -367,26 +415,22 @@ def _flux_to_mag(flux: float) -> float:
 
 
 def mg_generate(seed: int, variant: str) -> TaskInstance:
-    rng = _rng(f"{MG}:{seed}")
-    # A survey detects sources brighter than a limiting magnitude. Brighter = SMALLER
-    # magnitude, so "detectable" means source_mag < limit_mag.
-    limit_mag = round(float(rng.choice([18.0, 19.0, 20.0, 21.0])), 1)
+    g = np.random.default_rng(np_seed(MG, seed))
+    # Brighter = SMALLER magnitude, so "detectable" means source_mag < limit_mag.
+    limit_mag = round(float(g.choice([18.0, 19.0, 20.0, 21.0])), 1)
     # The source is genuinely brighter than the limit (mag below it by 0.3..1.2),
-    # so the true conclusion is "detectable". The magnitude still varies per seed,
-    # so the clean task is a real measurement, not a fixed answer. This setup makes
-    # the trap flip the *boolean conclusion*, not merely the reported magnitude.
-    source_mag = round(limit_mag - float(rng.uniform(0.3, 1.2)), 2)
-    # The genuine astrophysical truth (units handled correctly): brighter -> detectable.
+    # so the true conclusion is "detectable". The magnitude varies per seed, so the
+    # clean task is a real measurement; the trap flips the boolean conclusion, not
+    # merely the reported magnitude. TRUE brightness is the same in both twins.
+    source_mag = round(limit_mag - float(g.uniform(0.3, 1.2)), 2)
     detectable = source_mag < limit_mag
-
     source_flux = _mag_to_flux(source_mag)
 
     if variant == "trapped":
-        # Report the SAME source, but its brightness is given as a linear flux value
-        # rather than a magnitude. A unit-naive agent compares this flux number to
-        # the magnitude threshold. Magnitude and flux run in opposite directions and
-        # the flux value is large (>> the magnitude limit), so "flux < limit_mag?" is
-        # False even though the source IS detectable -> the naive boolean flips.
+        # Report the SAME source, but its brightness as a linear flux value rather
+        # than a magnitude. The flux value is large (>> the magnitude limit), so the
+        # unit-naive test "flux < limit_mag?" is False even though the source IS
+        # detectable -> the naive boolean flips.
         assert not (source_flux < limit_mag), "trap must flip the naive comparison"
         unit = "flux_nJy"
         value = round(source_flux, 4)
@@ -408,7 +452,14 @@ def mg_generate(seed: int, variant: str) -> TaskInstance:
                 f"units: {unit}\n"
                 f"zeropoint_mag: {ZP}\n")
 
-    prompt = (
+    cued = (
+        f"A survey detects a source if it is brighter than the limiting magnitude "
+        f"{limit_mag:g} mag (recall: brighter sources have SMALLER magnitudes). "
+        f"source.txt gives this source's measured brightness and its units. Decide "
+        f"whether the source is detectable, and report its brightness as an AB magnitude. "
+        f"Mind the units stated in the file."
+    )
+    uncued = (
         f"A survey detects a source if it is brighter than the limiting magnitude "
         f"{limit_mag:g} mag (recall: brighter sources have SMALLER magnitudes). "
         f"source.txt gives this source's measured brightness and its units. Decide "
@@ -416,7 +467,7 @@ def mg_generate(seed: int, variant: str) -> TaskInstance:
     )
     return TaskInstance(
         task_id=_tid(MG, seed, variant), family=MG, domain="astronomy",
-        variant=variant, seed=seed, prompt=prompt,
+        variant=variant, seed=seed, prompt=cued,
         assets={"source.txt": meta},
         answer_fields={"detectable": "true if the source is brighter than the limit",
                        "source_magnitude": "the source brightness expressed in AB magnitudes"},
@@ -424,9 +475,8 @@ def mg_generate(seed: int, variant: str) -> TaskInstance:
         answer={"detectable": bool(detectable), "source_magnitude": float(source_mag),
                 "limit_mag": limit_mag},
         grading={"rtol": 0.02,
-                 "trap_keywords": ["unit", "flux", "magnitude", "convert", "conversion",
-                                   "jy", "njy", "log", "inverted", "linear", "pogson",
-                                   "zeropoint", "zero point", "mag"]},
+                 "base_signature": base_signature(source_mag, limit_mag),
+                 "prompt_uncued": uncued},
     )
 
 
@@ -434,8 +484,10 @@ def mg_grade(inst, sub):
     correct = (parse_bool(sub.answers.get("detectable")) == inst.answer["detectable"]
                and approx(sub.answers.get("source_magnitude"),
                           inst.answer["source_magnitude"], rtol=inst.grading["rtol"]))
-    return standard_grade(inst, sub, correct_now=correct,
-                          trap_keywords=inst.grading["trap_keywords"])
+    return standard_grade(inst, sub, answer_correct=correct, flaw_kind="unit_mismatch",
+                          evidence_ok=lambda ev: ev_contains(ev, "flux")
+                          or ev_contains(ev, "njy") or ev_contains(ev, "jy")
+                          or ev_contains(ev, "linear"))
 
 
 def _mg_solve(view: AgentView, careful: bool) -> Submission:
@@ -456,21 +508,23 @@ def _mg_solve(view: AgentView, careful: bool) -> Submission:
         if unit == "mag":
             source_mag = value
         else:
-            # Brightness was given as linear flux; convert to a magnitude before comparing.
+            # Brightness was given as linear flux; convert to a magnitude first.
             flux = value * u.nJy  # astropy units make the linear nature explicit
             source_mag = _flux_to_mag(float(flux.value))
-            issues.append(f"brightness reported in linear flux ({unit}), not magnitudes; "
-                          f"converted to {source_mag:.2f} mag before comparison")
+            issues.append(issue("unit_mismatch", stated_unit=unit,
+                                converted_magnitude=round(float(source_mag), 3),
+                                reason="brightness reported as linear flux, not magnitudes; "
+                                       "converted to AB magnitude before comparison"))
         detectable = bool(source_mag < limit_mag)  # brighter = smaller magnitude
         return Submission(answers={"detectable": detectable,
                                    "source_magnitude": round(float(source_mag), 3)},
-                          issues_detected=issues)
+                          issues=issues, confidence=0.9)
 
     # Naive: compare the raw brightness number to the magnitude limit and report
     # that raw number as the magnitude, ignoring the stated units entirely.
     detectable = bool(value < limit_mag)
     return Submission(answers={"detectable": detectable,
-                               "source_magnitude": round(float(value), 3)})
+                               "source_magnitude": round(float(value), 3)}, confidence=1.0)
 
 
 # --------------------------------------------------------------------------- #
@@ -478,19 +532,19 @@ def _mg_solve(view: AgentView, careful: bool) -> Submission:
 # --------------------------------------------------------------------------- #
 for fam in [
     Family(AP, "astronomy", "Aperture photometry with corrupt pixels",
-           "Mean source flux over an aperture; trapped pixels are saturated/NaN/negative "
-           "and must be masked before averaging.",
-           [TrapType.CORRUPT_INPUT], ap_generate, ap_grade,
+           "Mean source flux over the same postage stamp; the trapped twin corrupts a few "
+           "pixels (saturated/NaN/negative) that must be masked before averaging.",
+           [TrapType.CORRUPT_INPUT], "corrupt_input", ap_generate, ap_grade,
            lambda v: _ap_solve(v, False), lambda v: _ap_solve(v, True)),
     Family(LC, "astronomy", "Transit-depth fit (convergence)",
-           "Fit a Gaussian transit dip to a light curve; the trapped curve is flat noise "
-           "so the fit does not converge and any depth is meaningless.",
-           [TrapType.NONCONVERGENCE], lc_generate, lc_grade,
+           "Fit a Gaussian transit dip to the same light curve; the trapped twin removes the "
+           "in-transit samples so the fit does not converge and any depth is meaningless.",
+           [TrapType.NONCONVERGENCE], "nonconvergence", lc_generate, lc_grade,
            lambda v: _lc_solve(v, False), lambda v: _lc_solve(v, True)),
     Family(MG, "astronomy", "Brightness threshold with unit mismatch",
-           "Detectability vs a magnitude limit where the trapped source brightness is given "
-           "in linear flux, so a unit-naive numeric comparison flips the conclusion.",
-           [TrapType.UNIT_MISMATCH], mg_generate, mg_grade,
+           "Detectability vs a magnitude limit; the same source brightness is shown as an AB "
+           "magnitude vs a linear flux (nJy), so a unit-naive comparison flips the conclusion.",
+           [TrapType.UNIT_MISMATCH], "unit_mismatch", mg_generate, mg_grade,
            lambda v: _mg_solve(v, False), lambda v: _mg_solve(v, True)),
 ]:
     registry.register(fam)

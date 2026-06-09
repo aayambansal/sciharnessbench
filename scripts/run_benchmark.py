@@ -26,12 +26,13 @@ from shb.agents import ReferenceAgent  # noqa: E402
 
 
 def _summary_line(name, card) -> str:
-    o = card.overall
+    o = card.headline
 
     def p(x):
         return "  - " if x is None else f"{100 * x:5.1f}%"
     return (f"{name:20s} competence={p(o['competence'])}  robustness={p(o['robustness'])}  "
-            f"fake-science-gap={p(o['fake_science_gap'])}  trap-detection={p(o['trap_detection_rate'])}")
+            f"gap={p(o['fake_science_gap'])}  confident-wrong={p(o['confident_wrong_rate'])}  "
+            f"false-alarm={p(o['false_alarm_rate'])}  trap-detect={p(o['trap_detection_rate'])}")
 
 
 def main() -> int:
@@ -59,8 +60,8 @@ def main() -> int:
     for name in names:
         print(_summary_line(name, cards[name]))
     if {"reference-naive", "reference-careful"} <= set(cards):
-        gap_n = cards["reference-naive"].overall["fake_science_gap"]
-        gap_c = cards["reference-careful"].overall["fake_science_gap"]
+        gap_n = cards["reference-naive"].headline["fake_science_gap"]
+        gap_c = cards["reference-careful"].headline["fake_science_gap"]
         print(f"\nDiscrimination: naive gap {100*gap_n:.1f} pts vs careful gap {100*gap_c:.1f} pts "
               f"(a working benchmark shows naive >> careful).")
 

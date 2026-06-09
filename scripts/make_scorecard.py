@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shb import aggregate, registry, run_benchmark  # noqa: E402
 from shb.agents import ReferenceAgent  # noqa: E402
 
-SEEDS = int(os.environ.get("SHB_SEEDS", "10"))
+SEEDS = int(os.environ.get("SHB_SEEDS", "12"))
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results")
 
 
@@ -24,62 +24,65 @@ def pct(x):
     return "  -  " if x is None else f"{100 * x:.1f}"
 
 
-def combined_markdown(naive, careful, n_seeds, n_families, n_grades) -> str:
-    no, co = naive.overall, careful.overall
+def combined_markdown(naive, careful, n_seeds, n_grades) -> str:
+    hn, hc = naive.headline, careful.headline
+    ci = hn.get("gap_ci") or {}
+    fams = registry.all_families()
+    npaired = sum(1 for f in fams if f.paired)
     L = [
-        "# SciHarnessBench — reference scorecard",
-        "",
+        "# SciHarnessBench — reference scorecard", "",
         "SciHarnessBench measures **fake science**: does a scientific agent produce a confident,",
         "well-formatted, and *wrong* result when the data hides a flaw a competent scientist would",
         "catch? Every task ships as a clean/trapped pair; the headline metric is the **gap** between",
-        "an agent's accuracy on the two.",
+        "an agent's accuracy on the two, computed over *paired* families (true counterfactual twins).",
         "",
-        "The two reference agents below use **no model and no API key** — they bound the range a real",
-        "system under test falls into:",
+        "The two reference agents use **no model and no API key** — they bound the range a real",
+        "system under test falls into. `reference-naive` does the right computation but trusts every",
+        "input; `reference-careful` validates inputs and reports structured, evidence-bearing flaws.",
         "",
-        "- `reference-naive` does the right computation but trusts every input at face value → commits the fake science.",
-        "- `reference-careful` validates inputs, checks units/convergence/confounds, and corrects or flags the flaw → does real science.",
+        f"_{n_seeds} seeds x {len(fams)} families ({npaired} paired, {len(fams)-npaired} robustness "
+        f"scenarios) = {n_grades} graded tasks per agent. Self-generated and self-graded._", "",
+        "## Headline (paired families)", "",
+        "| agent | competence | robustness | fake-science gap | confident-wrong | false-alarm | trap detection |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+        f"| `reference-naive` | {pct(hn['competence'])}% | {pct(hn['robustness'])}% | "
+        f"**{pct(hn['fake_science_gap'])} pts** | {pct(hn['confident_wrong_rate'])}% | "
+        f"{pct(hn['false_alarm_rate'])}% | {pct(hn['trap_detection_rate'])}% |",
+        f"| `reference-careful` | {pct(hc['competence'])}% | {pct(hc['robustness'])}% | "
+        f"**{pct(hc['fake_science_gap'])} pts** | {pct(hc['confident_wrong_rate'])}% | "
+        f"{pct(hc['false_alarm_rate'])}% | {pct(hc['trap_detection_rate'])}% |",
         "",
-        f"_Generated over {n_seeds} seeds × {n_families} families = {n_grades} graded tasks "
-        f"(clean + trapped), fully self-generated and self-graded._",
+        f"Naive fake-science gap 95% bootstrap CI: [{pct(ci.get('ci95_low'))}, {pct(ci.get('ci95_high'))}] pts "
+        f"over {ci.get('n_pairs', 0)} pairs. Both agents are equally competent; they diverge entirely on",
+        "robustness. The gap is a within-task difference (robust to grading noise) and cannot be gamed",
+        "by abstaining (a flag/abstention on a clean task is a false alarm that scores zero).",
         "",
-        "## Headline",
-        "",
-        "| agent | competence (clean) | robustness (trapped) | fake-science gap | trap detection |",
-        "|---|---:|---:|---:|---:|",
-        f"| `reference-naive` | {pct(no['competence'])}% | {pct(no['robustness'])}% | "
-        f"**{pct(no['fake_science_gap'])} pts** | {pct(no['trap_detection_rate'])}% |",
-        f"| `reference-careful` | {pct(co['competence'])}% | {pct(co['robustness'])}% | "
-        f"**{pct(co['fake_science_gap'])} pts** | {pct(co['trap_detection_rate'])}% |",
-        "",
-        "Both agents are equally **competent** (they solve clean tasks). They diverge entirely on",
-        "**robustness**: the naive agent collapses under planted flaws while the careful agent holds.",
-        "The gap is the product — and because it is a within-task difference, it is robust to grading",
-        "noise and cannot be gamed by reflexive abstention (abstaining on a clean task scores zero).",
-        "",
-        "## Robustness by domain (trapped pass rate)",
-        "",
-        "| domain | naive | careful |",
-        "|---|---:|---:|",
+        "## Robustness by domain (paired)", "",
+        "| domain | competence | naive robustness | careful robustness |", "|---|---:|---:|---:|",
     ]
-    for dom in sorted(careful.by_domain):
-        L.append(f"| {dom} | {pct(naive.by_domain[dom]['robustness'])}% "
-                 f"| {pct(careful.by_domain[dom]['robustness'])}% |")
-    L += ["", "## Robustness by trap type (trapped pass rate)", "",
-          "| trap type | naive | careful | n |", "|---|---:|---:|---:|"]
-    for trap in sorted(careful.by_trap):
-        b_n, b_c = naive.by_trap[trap], careful.by_trap[trap]
-        L.append(f"| {trap} | {pct(b_n['robustness'])}% | {pct(b_c['robustness'])}% | {b_c['n_trapped']} |")
-
-    fams = registry.all_families()
+    for d in sorted(careful.by_domain):
+        L.append(f"| {d} | {pct(careful.by_domain[d]['competence'])} "
+                 f"| {pct(naive.by_domain[d]['robustness'])} | {pct(careful.by_domain[d]['robustness'])} |")
+    L += ["", "## Robustness by trap type (paired)", "",
+          "| trap type | naive robustness | careful robustness | careful trap detection | n |",
+          "|---|---:|---:|---:|---:|"]
+    for t in sorted(careful.by_trap):
+        L.append(f"| {t} | {pct(naive.by_trap[t]['robustness'])} | {pct(careful.by_trap[t]['robustness'])} "
+                 f"| {pct(careful.by_trap[t]['trap_detection_rate'])} | {careful.by_trap[t]['n_trapped']} |")
+    if careful.scenarios.get("families"):
+        L += ["", "## Robustness scenarios (non-paired families)", "",
+              "| family | naive robustness | careful robustness |", "|---|---:|---:|"]
+        for f in sorted(careful.scenarios["families"]):
+            L.append(f"| {f} | {pct(naive.scenarios['families'][f]['robustness'])} "
+                     f"| {pct(careful.scenarios['families'][f]['robustness'])} |")
     L += ["", f"## Task families ({len(fams)})", ""]
     cur = None
     for f in fams:
         if f.domain != cur:
             cur = f.domain
             L.append(f"\n**{cur}**")
-        traps = ", ".join(t.value for t in f.trap_types)
-        L.append(f"- `{f.family_id}` — {f.title} _(traps: {traps})_")
+        tag = "" if f.paired else " _(scenario)_"
+        L.append(f"- `{f.family_id}` — {f.title} _(trap: {f.flaw_kind})_{tag}")
     return "\n".join(L) + "\n"
 
 
@@ -87,19 +90,14 @@ def main() -> int:
     os.makedirs(OUT, exist_ok=True)
     cards = {}
     for mode in ("naive", "careful"):
-        grades = run_benchmark(ReferenceAgent(mode), seeds=range(SEEDS), progress=False)
+        grades = run_benchmark(ReferenceAgent(mode), seeds=range(SEEDS))
         cards[mode] = aggregate(f"reference-{mode}", grades)
         with open(os.path.join(OUT, f"scorecard_reference-{mode}.json"), "w") as fh:
             fh.write(cards[mode].to_json())
-
-    n_fam = len(registry.all_families())
-    n_grades = cards["careful"].n_grades
-    md = combined_markdown(cards["naive"], cards["careful"], SEEDS, n_fam, n_grades)
+    md = combined_markdown(cards["naive"], cards["careful"], SEEDS, cards["careful"].n_grades)
     with open(os.path.join(OUT, "sample_scorecard.md"), "w") as fh:
         fh.write(md)
-
     print(md)
-    print(f"\nwrote results/sample_scorecard.md and per-agent JSON ({n_fam} families, {n_grades} tasks/agent)")
     return 0
 
 

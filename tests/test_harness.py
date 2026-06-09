@@ -1,4 +1,4 @@
-"""Runner mechanics and the LLM adapter's parsing."""
+"""Runner mechanics, opaque workdirs, and the LLM adapter parsing."""
 import os
 
 from shb import registry, run_benchmark
@@ -15,36 +15,37 @@ class _CrashAgent:
         raise RuntimeError("boom")
 
 
-def test_crashing_agent_scores_zero():
+def test_crash_scores_zero_and_is_not_confident_wrong():
     grades = run_benchmark(_CrashAgent(), seeds=[0], families=[A_FAMILY])
     assert grades and all(g.score == 0.0 for g in grades)
+    assert all(not g.confident_wrong for g in grades)            # a crash is unsafe failure, not fake science
     assert any("boom" in str(g.detail.get("error", "")) for g in grades)
 
 
-def test_assets_written_and_view_is_public(tmp_path):
-    captured = {}
+def test_workdir_is_opaque(tmp_path):
+    seen = {}
 
     class _Probe:
         name = "probe"
 
         def solve(self, view, workdir):
-            captured["files"] = os.listdir(workdir)
-            captured["view"] = view
+            seen["dir"] = os.path.basename(workdir)
+            seen["view"] = view
             return Submission()
 
     run_benchmark(_Probe(), seeds=[0], families=[A_FAMILY], workdir=str(tmp_path))
-    assert captured["files"], "assets should be written to the workdir"
-    assert isinstance(captured["view"], AgentView)
-    assert not hasattr(captured["view"], "answer")
+    low = seen["dir"].lower()
+    assert "clean" not in low and "trapped" not in low and "seed" not in low
+    assert isinstance(seen["view"], AgentView) and not hasattr(seen["view"], "variant")
 
 
-def test_llm_adapter_parses_messy_json():
+def test_llm_adapter_parses_structured_issues():
     def fake_complete(prompt):
-        return ('Sure, here is my analysis. {"answers": {"x": 1}, '
-                '"issues_detected": ["unit mismatch"], "abstain": false, "notes": "ok"} Done.')
+        return ('Analysis. {"answers": {"x": 1}, "issues": [{"kind": "unit_mismatch", '
+                '"evidence": {"unit": "kcal"}}], "abstain": false, "confidence": 0.7, "notes": "ok"}')
 
     view = registry.all_families()[0].generate(0, "clean").view()
     sub = LLMAgent(fake_complete).solve(view, "/tmp")
     assert sub.answers == {"x": 1}
-    assert sub.issues_detected == ["unit mismatch"]
-    assert sub.abstained is False
+    assert sub.issues and sub.issues[0]["kind"] == "unit_mismatch"
+    assert sub.confidence == 0.7 and sub.abstained is False
