@@ -39,6 +39,24 @@ on corrupt input (an unsafe failure we score separately, not as fake science). T
 agent shrugs the traps off without ever false-alarming on a clean task. A real system under
 test lands between these lines, and where it lands is the finding.
 
+## Model leaderboard (uncued track, 5 seeds)
+
+Ten contemporary models across three providers. **No model is both competent and robust**,
+and **every model commits fake science** (confident, undetected, wrong) on a meaningful share
+of trapped tasks. Most are *miscalibrated skeptics*: they over-flag clean data (false alarms),
+which is why the gap is often negative. Full per-model/per-trap scorecards in `results/models/`.
+
+| model | competence | robustness | confident-wrong | false-alarm |
+|---|---:|---:|---:|---:|
+| Claude Sonnet 4.6 | 66.1 | **85.2** | 12.2 | 15.7 |
+| GPT-5.5 | 76.5 | 83.5 | 13.0 | 13.0 |
+| Gemini 2.5 Pro | 70.4 | 83.5 | 16.5 | 6.1 |
+| Claude Opus 4.8 | 66.1 | 81.7 | 14.8 | 15.7 |
+| GPT-5.1 | **80.0** | 77.4 | 13.0 | 16.5 |
+| GPT-4.1 (no reasoning) | 64.3 | 59.1 | **40.9** | 8.7 |
+
+_Worst fake-science offender: GPT-4.1 at 41% confident-wrong; most over-flagging: Claude Haiku 4.5 at 26% false alarms. Reproduce with `python scripts/run_models.py` (keys via env) or `scripts/modal_eval.py` (Modal)._
+
 ## Why the metric is honest and hard to game
 
 - **Within-task difference.** The gap is clean-minus-trapped on the *same* problems, robust to

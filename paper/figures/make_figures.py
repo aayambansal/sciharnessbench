@@ -69,7 +69,42 @@ def fig_by_domain():
     plt.close(fig)
 
 
+SHORT = {
+    "anthropic:claude-opus-4-8": "Opus 4.8", "anthropic:claude-sonnet-4-6": "Sonnet 4.6",
+    "anthropic:claude-haiku-4-5-20251001": "Haiku 4.5", "openai:gpt-5.5": "GPT-5.5",
+    "openai:gpt-5.1": "GPT-5.1", "openai:gpt-4.1": "GPT-4.1", "openai:gpt-5-mini": "GPT-5 mini",
+    "google:gemini-3.1-pro-preview": "Gemini 3.1 Pro", "google:gemini-2.5-pro": "Gemini 2.5 Pro",
+    "google:gemini-2.5-flash": "Gemini 2.5 Flash",
+}
+
+
+def fig_models():
+    """Competence vs robustness per model; distance below the diagonal is the gap."""
+    path = os.path.join(RESULTS, "models", "_summary.json")
+    if not os.path.exists(path):
+        print("(no model results yet; skipping fig_models.pdf)")
+        return
+    models = json.load(open(path)).get("models", {})
+    fig, ax = plt.subplots(figsize=(3.3, 3.0))
+    ax.plot([0, 100], [0, 100], ls="--", lw=0.7, color="#999", zorder=0)
+    ax.text(62, 70, "no fake science", rotation=45, fontsize=6, color="#999", ha="center", va="center")
+    for spec, h in models.items():
+        c, r = 100 * h["competence"], 100 * h["robustness"]
+        ax.scatter(c, r, s=22, color=NAVY, zorder=3)
+        ax.annotate(SHORT.get(spec, spec.split(":")[-1]), (c, r), fontsize=5.5,
+                    xytext=(3, -1), textcoords="offset points")
+    ax.set_xlabel("competence (clean, \\%)")
+    ax.set_ylabel("robustness (trapped, \\%)")
+    ax.set_xlim(0, 105)
+    ax.set_ylim(0, 105)
+    fig.tight_layout()
+    fig.savefig(os.path.join(HERE, "fig_models.pdf"))
+    plt.close(fig)
+    print("wrote fig_models.pdf")
+
+
 if __name__ == "__main__":
     fig_discrimination()
     fig_by_domain()
+    fig_models()
     print("wrote fig_discrimination.pdf, fig_bydomain.pdf")

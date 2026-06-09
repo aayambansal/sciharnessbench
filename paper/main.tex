@@ -76,10 +76,12 @@ reports). v1 spans \NumDomains domains, \NumFamilies task families, and all
 range: a careful agent that validates inputs passes clean and trapped tasks (gap
 \CarefulGap pts), while a naive agent that trusts inputs solves clean tasks but
 fails essentially every trap (gap \NaiveGap pts; \NaiveConfidentWrong\% of
-failures are confident-wrong). These oracles are a sanity check on the construct,
-not an empirical study of deployed systems; large-scale evaluation of frontier
-agents is left to a public leaderboard under the protocol we fix here. We release
-the benchmark, harness, tests, and evaluation protocol.
+failures are confident-wrong). We then evaluate ten frontier and mid-tier models
+from three providers: none is both competent and robust (competence $\le\!80\%$,
+robustness $\le\!85\%$), every model commits fake science on $12$--$41\%$ of
+trapped tasks, and most are \emph{miscalibrated skeptics} that over-flag clean
+data---showing that \bench measures a failure current systems genuinely exhibit.
+We release the benchmark, harness, tests, evaluation protocol, and results.
 \end{abstract}
 
 \section{Introduction}
@@ -147,12 +149,15 @@ model result: the reference agents are oracles that bound the achievable range.
 
 Our contributions are: (1) \emph{fake science} as a measurable construct and the
 \clean/\trapped paired design with the \fsg{} metric; (2) a self-generating,
-self-grading, contamination- and gaming-resistant harness realizing it across
-\NumDomains scientific domains and \NumTrapTypes failure modes; (3) a taxonomy of
-machine-detectable scientific failure modes grounded in the meta-science
-literature; and (4) reference-agent and adversarial validation establishing the
-benchmark's discriminative range and its resistance to gaming. We release
-everything as open source.
+self-grading harness---designed to reduce instance-level contamination and to
+close the gaming channels we identify---realizing it across \NumDomains scientific
+domains and \NumTrapTypes failure modes; (3) a taxonomy of machine-detectable
+scientific failure modes grounded in the meta-science literature; (4)
+reference-agent and adversarial validation establishing the benchmark's
+discriminative range; and (5) an evaluation of ten contemporary models from three
+providers, which finds that none is both competent and robust and that all commit
+fake science, with the confident-wrong / false-alarm decomposition exposing two
+distinct failure modes. We release everything as open source.
 
 \section{Related Work}
 
@@ -446,22 +451,64 @@ the discriminative range and document correct behavior, and the headline numbers
 are properties of the benchmark, not of any deployed system. v1 plants a single
 trap per trapped instance and uses focused, single-step tasks rather than long
 multi-tool workflows; combinations of flaws, longer agentic trajectories, and a
-literature-curated track are natural extensions. Finally, this release validates
-the construct with reference oracles; large-scale evaluation of frontier agents is
-the subject of ongoing work (Section~\ref{sec:protocol}).
+literature-curated track are natural extensions. Our model evaluation
+(Section~\ref{sec:eval}) covers ten API models on the uncued track; tool-using
+agent scaffolds, human-analyst baselines, and the cued/uncued comparison at scale
+are left to the public leaderboard.
 
-\section{Model-Evaluation Protocol}\label{sec:protocol}
+\section{Model Evaluation}\label{sec:eval}
 
-We deliberately separate \emph{building and validating} the benchmark from
-\emph{evaluating} systems on it. Frontier model and agent results are not reported
-here; they will populate a public leaderboard under the protocol fixed in this
-paper. Each system is run out-of-process on the private salted split with only
-serialized public assets, under per-task time and memory limits, through the
-\texttt{(view)$\rightarrow$(answers, issues, confidence)} adapter. We will report,
-for each system, competence, robustness, the \fsg{} with its CI, the
-confident-wrong rate, and the false-alarm rate, broken down by domain and trap
-type, in both cued and uncued tracks, alongside human-analyst baselines. Pre-registering
-the protocol before evaluation guards against benchmark-specific tuning.
+We evaluate ten contemporary models spanning three providers (Anthropic Claude,
+OpenAI GPT, Google Gemini) and three capability tiers, through the
+\texttt{(view)$\rightarrow$(answers, issues, confidence)} adapter on the
+\emph{uncued} track (the primary track; cued prompts are a diagnostic). Each model
+is run statelessly per task. Following Section~\ref{sec:design}, the official
+configuration uses the private salted split and the out-of-process harness; we
+report competence, robustness, the \fsg, the confident-wrong rate, the false-alarm
+rate, and the trap-detection rate (Table~\ref{tab:leaderboard},
+Figure~\ref{fig:models}).
+
+\IfFileExists{tables/tab_leaderboard.tex}{%
+\begin{table}[t]\centering\small
+\input{tables/tab_leaderboard}
+\caption{Model leaderboard on \bench (uncued track, \SeedsPerFamily seeds per
+family, paired families; \% throughout). Lower \fsg{} is better; sorted by
+robustness.}\label{tab:leaderboard}
+\end{table}}{}
+
+\IfFileExists{figures/fig_models.pdf}{%
+\begin{figure}[t]\centering
+\includegraphics[width=0.82\columnwidth]{figures/fig_models}
+\caption{Competence vs.\ robustness per model. Distance below the diagonal is the
+\fsg: a point \emph{on} the diagonal commits no fake science, while a
+high-competence, low-robustness point is exactly the failure \bench targets.}
+\label{fig:models}
+\end{figure}}{}
+
+\paragraph{Findings.}
+No model is both competent and robust: competence peaks at $80\%$ (GPT-5.1) and
+robustness at $85\%$ (Claude Sonnet 4.6), and \emph{every} model commits fake
+science on a sizable share of trapped tasks (confident-wrong rate $12$--$41\%$).
+The non-reasoning GPT-4.1 is the worst offender ($41\%$); the strongest reasoning
+models cut that only to $12$--$13\%$ (Claude Sonnet 4.6, GPT-5.5, GPT-5.1).
+Strikingly, the \fsg{} is \emph{negative} for seven of the ten models---they pass
+more trapped than clean tasks---not because they handle traps flawlessly but
+because they are \emph{miscalibrated skeptics}: they raise spurious flaws on clean
+data (false-alarm rate up to $26\%$), which costs competence, while the same
+skepticism earns detection credit on trapped tasks. The two failure modes trade
+off by family: the Claude models are the most skeptical (highest robustness,
+$\sim\!16\%$ false alarms), the Gemini models the least (false alarms $<\!7\%$, but
+Gemini~2.5 Flash is confident-wrong $23\%$ of the time). This decomposition---not a
+single accuracy or gap number---is the actionable signal, and it is why \bench
+reports the confident-wrong and false-alarm rates separately: today's frontier
+models fail in \emph{both} directions, and none approaches the careful reference
+scientist. (Gemini~3.1 Pro is an early preview release.)
+
+\paragraph{Protocol.}
+Pre-registering the configuration before evaluation guards against
+benchmark-specific tuning, and the salted split makes memorizing the public
+instances useless. Human-analyst and tool-using-agent baselines, and the cued vs.\
+uncued comparison at scale, are the natural next additions.
 
 \section{Reproducibility}
 
@@ -501,11 +548,12 @@ results---and quantifies it with the \fsg. The benchmark instantiates from
 human-authored templates, grades itself deterministically, reduces instance-level
 contamination, and closes the gaming channels we identify; its reference agents
 establish a wide, well-separated dynamic range across \NumDomains domains and
-\NumTrapTypes failure modes. The immediate next step is the empirical study the
-construct is built for---evaluating frontier agents and human baselines under the
-fixed protocol---which we expect to reveal substantial fake-science gaps. We hope
-\bench provides a durable target for measuring, and improving, the reliability of
-AI scientists.
+\NumTrapTypes failure modes. Evaluating ten contemporary models, we find that none
+is both competent and robust, that every model commits fake science on a
+substantial fraction of trapped tasks, and that most are miscalibrated
+skeptics---over-flagging clean data while still missing real flaws. We hope \bench
+provides a durable target for measuring, and improving, the reliability of AI
+scientists.
 
 \appendix
 

@@ -117,6 +117,37 @@ def taxonomy():
     w("tab_taxonomy.tex", body)
 
 
+PRETTY = {
+    "anthropic:claude-opus-4-8": "Claude Opus 4.8",
+    "anthropic:claude-sonnet-4-6": "Claude Sonnet 4.6",
+    "anthropic:claude-haiku-4-5-20251001": "Claude Haiku 4.5",
+    "openai:gpt-5.5": "GPT-5.5", "openai:gpt-5.1": "GPT-5.1",
+    "openai:gpt-4.1": "GPT-4.1", "openai:gpt-5-mini": "GPT-5 mini",
+    "google:gemini-3.1-pro-preview": "Gemini 3.1 Pro", "google:gemini-2.5-pro": "Gemini 2.5 Pro",
+    "google:gemini-2.5-flash": "Gemini 2.5 Flash",
+}
+
+
+def leaderboard():
+    """Emit the model leaderboard from results/models/_summary.json, if present."""
+    path = os.path.join(SCORE, "models", "_summary.json")
+    if not os.path.exists(path):
+        print("(no model results yet; skipping tab_leaderboard.tex)")
+        return
+    data = json.load(open(path))
+    models = data.get("models", data)
+    rows = []
+    for spec, h in sorted(models.items(), key=lambda kv: -(kv[1].get("robustness") or 0)):
+        name = PRETTY.get(spec, spec.replace("_", "\\_"))
+        rows.append(f"{name} & {100*h['competence']:.1f} & {100*h['robustness']:.1f} & "
+                    f"{100*h['fake_science_gap']:.1f} & {100*h['confident_wrong_rate']:.1f} & "
+                    f"{100*h['false_alarm_rate']:.1f} & {100*h['trap_detection_rate']:.1f} \\\\")
+    body = ("\\begin{tabular}{@{}lcccccc@{}}\n\\toprule\n"
+            "Model & Comp. & Robust. & Gap & Conf.-wrong & False-alarm & Trap det. \\\\\n\\midrule\n"
+            + "\n".join(rows) + "\n\\bottomrule\n\\end{tabular}\n")
+    w("tab_leaderboard.tex", body)
+
+
 def facts():
     fams = registry.all_families()
     npaired = sum(1 for f in fams if f.paired)
@@ -146,4 +177,5 @@ if __name__ == "__main__":
     by_domain()
     families_spec()
     taxonomy()
+    leaderboard()
     facts()

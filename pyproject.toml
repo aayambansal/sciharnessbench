@@ -23,6 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
+eval = ["openai>=2", "anthropic>=0.40", "google-genai", "modal"]
 
 [tool.setuptools]
 packages = ["shb", "shb.agents", "shb.domains"]
