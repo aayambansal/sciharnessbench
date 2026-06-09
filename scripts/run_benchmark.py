@@ -44,6 +44,8 @@ def main() -> int:
     ap.add_argument("--families", nargs="*", default=None)
     ap.add_argument("--out", default=None, help="write the (last) scorecard markdown here")
     ap.add_argument("--json", default=None, help="write the (last) scorecard JSON here")
+    ap.add_argument("--prompt-style", default="cued", choices=["cued", "uncued"],
+                    help="uncued (no validation hints) is the primary track for model eval")
     ap.add_argument("--quiet", action="store_true")
     args = ap.parse_args()
 
@@ -52,8 +54,8 @@ def main() -> int:
     cards = {}
     for name in names:
         agent = ReferenceAgent(name.split("-", 1)[1])
-        grades = run_benchmark(agent, seeds=seeds, domains=args.domains,
-                               families=args.families, progress=not args.quiet)
+        grades = run_benchmark(agent, seeds=seeds, domains=args.domains, families=args.families,
+                               prompt_style=args.prompt_style, progress=not args.quiet)
         cards[name] = aggregate(name, grades)
 
     print("\n=== SciHarnessBench summary ===")

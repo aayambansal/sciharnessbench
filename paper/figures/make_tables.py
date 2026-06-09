@@ -75,6 +75,48 @@ def by_domain():
     w("tab_bydomain.tex", body)
 
 
+DOMAIN_LIB = {
+    "chemistry": "RDKit", "statistics": "scipy/sklearn", "physics": "numpy/scipy",
+    "biology": "Biopython/scipy", "climate": "numpy", "astronomy": "astropy/scipy",
+    "neuroscience": "numpy/scipy", "materials": "numpy",
+}
+TRAP_MOTIV = {
+    "decoy_data": "ioannidis2005why", "corrupt_input": "leek2010batch",
+    "unit_mismatch": "tropsha2010qsar", "future_leakage": "kapoor2023leakage",
+    "nonconvergence": "courant1928cfl", "wrong_control": "ioannidis2005why",
+    "confounding": "blyth1972simpson", "data_leakage": "kapoor2023leakage",
+    "multiple_comparisons": "benjamini1995fdr", "circular_analysis": "kriegeskorte2009circular",
+    "extrapolation": "tropsha2010qsar", "underpowered": "button2013power",
+}
+
+
+def families_spec():
+    fams = registry.all_families()
+    esc = "\\_"
+    rows = []
+    for f in sorted(fams, key=lambda x: x.family_id):
+        fid = f.family_id.replace("_", esc)
+        paired = "yes" if f.paired else "scenario"
+        rows.append(f"\\texttt{{{fid}}} & {DOMAIN_LIB.get(f.domain, '-')} & "
+                    f"{TRAP_SHORT[f.flaw_kind]} & {paired} & {f.title} \\\\")
+    body = ("\\begin{tabular}{@{}lllll@{}}\n\\toprule\n"
+            "Family & Library & Trap & Paired & Task \\\\\n\\midrule\n"
+            + "\n".join(rows) + "\n\\bottomrule\n\\end{tabular}\n")
+    w("tab_families.tex", body)
+
+
+def taxonomy():
+    fams = registry.all_families()
+    rows = []
+    for trap in sorted(TRAP_SHORT):
+        nfam = sum(1 for f in fams for t in f.trap_types if t.value == trap)
+        rows.append(f"{TRAP_SHORT[trap]} & \\citep{{{TRAP_MOTIV[trap]}}} & {nfam} \\\\")
+    body = ("\\begin{tabular}{@{}llc@{}}\n\\toprule\n"
+            "Trap type & Literature motivation & Families \\\\\n\\midrule\n"
+            + "\n".join(rows) + "\n\\bottomrule\n\\end{tabular}\n")
+    w("tab_taxonomy.tex", body)
+
+
 def facts():
     fams = registry.all_families()
     npaired = sum(1 for f in fams if f.paired)
@@ -102,4 +144,6 @@ if __name__ == "__main__":
     composition()
     reference()
     by_domain()
+    families_spec()
+    taxonomy()
     facts()

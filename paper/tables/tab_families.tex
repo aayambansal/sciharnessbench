@@ -1,0 +1,32 @@
+\begin{tabular}{@{}lllll@{}}
+\toprule
+Family & Library & Trap & Paired & Task \\
+\midrule
+\texttt{astro.aperture\_photometry} & astropy/scipy & corrupt input & yes & Aperture photometry with corrupt pixels \\
+\texttt{astro.brightness\_threshold} & astropy/scipy & unit mismatch & yes & Brightness threshold with unit mismatch \\
+\texttt{astro.transit\_fit} & astropy/scipy & non-convergence & yes & Transit-depth fit (convergence) \\
+\texttt{bio.diffexpr\_confounding} & Biopython/scipy & confounding & yes & Differential expression with batch confounding \\
+\texttt{bio.gc\_content} & Biopython/scipy & corrupt input & yes & Mean GC content with corrupt FASTA records \\
+\texttt{bio.wrong\_control} & Biopython/scipy & wrong control & yes & Treatment vs the tissue-matched control \\
+\texttt{chem.property\_ranking} & RDKit & corrupt input & yes & Rank by molecular weight with corrupt SMILES \\
+\texttt{chem.qm\_convergence} & RDKit & non-convergence & yes & Geometry optimization convergence \\
+\texttt{chem.reaction\_energy} & RDKit & unit mismatch & yes & Reaction feasibility with unit mismatch \\
+\texttt{chem.theoretical\_yield} & RDKit & decoy data & yes & Theoretical yield with decoy molar mass \\
+\texttt{climate.forecast\_skill} & numpy & future leakage & yes & Forecast skill with future leakage \\
+\texttt{climate.regional\_threshold} & numpy & unit mismatch & yes & Regional mean vs degC threshold with unit mismatch \\
+\texttt{climate.station\_mean} & numpy & decoy data & yes & Regional mean over stations with a decoy station \\
+\texttt{mat.alloy\_bandgap} & numpy & extrapolation & yes & Alloy bandgap extrapolation \\
+\texttt{mat.cell\_density} & numpy & corrupt input & yes & Densest crystal with corrupt structures \\
+\texttt{mat.formation\_stability} & numpy & unit mismatch & yes & Formation-energy stability with unit mismatch \\
+\texttt{neuro.channel\_responsiveness} & numpy/scipy & multiple comparisons & scenario & Channel responsiveness with multiple comparisons \\
+\texttt{neuro.decoding\_circular} & numpy/scipy & circular analysis & scenario & Neural decoding without double dipping \\
+\texttt{neuro.tuning\_difference} & numpy/scipy & underpowered & yes & Firing-rate difference from an adequate sample \\
+\texttt{phys.heat\_cfl} & numpy/scipy & non-convergence & yes & Heat-equation CFL stability \\
+\texttt{phys.kinetic\_threshold} & numpy/scipy & unit mismatch & yes & Kinetic-energy threshold with unit mismatch \\
+\texttt{phys.smallangle\_extrapolation} & numpy/scipy & extrapolation & yes & Small-angle fit extrapolation \\
+\texttt{stats.data\_leakage} & scipy/sklearn & data leakage & yes & Honest AUC with target leakage \\
+\texttt{stats.multiple\_comparisons} & scipy/sklearn & multiple comparisons & scenario & Multiple comparisons \\
+\texttt{stats.simpson} & scipy/sklearn & confounding & yes & Simpson's paradox \\
+\texttt{stats.underpowered} & scipy/sklearn & underpowered & yes & Underpowered conclusion \\
+\bottomrule
+\end{tabular}

@@ -66,18 +66,20 @@ comparison). The headline metric is the \fsg, the drop in accuracy from the clea
 to the trapped twin. \bench is \emph{procedurally instantiated} from
 human-authored templates and \emph{deterministically self-graded}: ground truth
 is computed by real scientific libraries and detection is verified against it, so
-there is no human annotation at evaluation time and no LLM judge. The design is
-contamination-resistant (instances regenerate under a private salt), opaque (the
-agent never sees the variant), and gaming-resistant (flagging or abstaining on a
-clean task is a false alarm that scores zero; detection requires structured,
-evidence-bearing flaw reports). v1 spans \NumDomains domains, \NumFamilies task
-families, and all \NumTrapTypes trap types. Two reference agents validate the
-design: a careful agent that validates inputs passes clean and trapped tasks
-(gap \CarefulGap pts), while a naive agent that trusts inputs solves clean tasks
-but fails essentially every trap (gap \NaiveGap pts; \NaiveConfidentWrong\% of
-failures are confident-wrong), confirming that \bench isolates fake science with
-a wide, well-separated dynamic range. We release the benchmark, harness, tests,
-and evaluation protocol.
+there is no human annotation at evaluation time and no LLM judge. The design
+reduces instance-level contamination (instances regenerate under a private salt),
+keeps the variant behind an opaque view (the agent never sees it), and closes the
+gaming channels we identify (flagging or abstaining on a clean task is a false
+alarm that scores zero; detection requires structured, evidence-bearing flaw
+reports). v1 spans \NumDomains domains, \NumFamilies task families, and all
+\NumTrapTypes trap types. Two reference agents establish the benchmark's dynamic
+range: a careful agent that validates inputs passes clean and trapped tasks (gap
+\CarefulGap pts), while a naive agent that trusts inputs solves clean tasks but
+fails essentially every trap (gap \NaiveGap pts; \NaiveConfidentWrong\% of
+failures are confident-wrong). These oracles are a sanity check on the construct,
+not an empirical study of deployed systems; large-scale evaluation of frontier
+agents is left to a public leaderboard under the protocol we fix here. We release
+the benchmark, harness, tests, and evaluation protocol.
 \end{abstract}
 
 \section{Introduction}
@@ -173,10 +175,21 @@ software-engineering agent benchmarks such as SWE-bench
 \cite{jimenez2024swebench}. These reward \emph{completing} a workflow and getting
 a defensible answer. \bench is complementary and orthogonal: it holds the
 workflow fixed and asks whether the agent's conclusion survives a planted data
-flaw, scoring the \emph{gap} rather than absolute task success. To our knowledge
-no prior benchmark uses counterfactual clean/trapped pairs to isolate
-fake-science failures, nor grades scientific-agent behavior with structured,
-evidence-verified flaw reports.
+flaw, scoring the \emph{gap} rather than absolute task success.
+
+\paragraph{Behavioral, contrast, and metamorphic evaluation.}
+Methodologically, \bench adapts ideas from outside scientific agents.
+\emph{Contrast sets} \cite{gardner2020contrast} perturb an input minimally to flip
+its label and probe a model's local decision boundary; our clean/trapped twins are
+contrast pairs in which the perturbation is a \emph{scientific flaw} and the
+``label'' is whether the correct conclusion changes. \emph{Behavioral testing}
+\cite{ribeiro2020checklist} replaces aggregate accuracy with targeted capability
+tests; our trap taxonomy is a capability checklist for scientific skepticism.
+\emph{Metamorphic testing} \cite{segura2016metamorphic} checks a system against
+relations between related inputs rather than a fixed oracle, exactly as the gap
+relates a task to its flawed twin. We are not aware of prior work that brings these
+to scientific agents: counterfactual clean/trapped pairs that isolate fake-science
+failures, graded by structured, evidence-verified flaw reports.
 
 \paragraph{Failure modes and meta-science.}
 Our taxonomy operationalizes documented failure modes from the meta-science
@@ -208,19 +221,23 @@ twin, drawn from the taxonomy of Section~\ref{sec:taxonomy}. We call such a fami
 and reported as separate robustness scenarios, never folded into the gap.
 
 An agent maps a task to an answer, an optional set of flaw reports, and a
-confidence. For an instance, let $a$ be the indicator that the agent's answer is
-the scientifically correct value \emph{for that instance} (the clean answer for a
-clean task; the flaw-corrected answer for a trapped task), and let $d$ be the
-indicator that the agent reported the planted flaw with verifiable evidence
-(Section~\ref{sec:metrics}). A trapped instance is handled correctly if the agent
-either corrects the answer or detects the flaw ($a\lor d$); the dangerous
-outcome---\emph{fake science}---is a wrong answer asserted confidently and without
-detection. For a family with $N$ seeds,
+confidence. For an instance, let $a$ indicate that the agent's answer is the
+scientifically correct value \emph{for that instance} (the clean answer for a
+clean task; the flaw-corrected answer for a trapped task); let $d$ indicate that
+it reported the planted flaw with verifiable evidence (Section~\ref{sec:metrics});
+and let $f$ indicate a \emph{false alarm}---any flaw claim or abstention. A clean
+instance passes only when the agent delivers the answer and raises no false alarm
+($a^{\text{c}}\wedge\neg f^{\text{c}}$); a trapped instance passes when the agent
+either corrects the answer or detects the flaw ($a^{\text{t}}\lor d^{\text{t}}$).
+The dangerous outcome---\emph{fake science}---is a wrong, undetected trapped answer
+asserted with confidence. For a family with $N$ seeds,
 \[
-\text{Competence } C=\tfrac{1}{N}\!\sum_s \mathbb{1}[a^{\text{c}}_s],\quad
-\text{Robustness } R=\tfrac{1}{N}\!\sum_s \mathbb{1}[a^{\text{t}}_s\lor d^{\text{t}}_s],
+C=\tfrac{1}{N}\!\sum_s \mathbb{1}[a^{\text{c}}_s\wedge\neg f^{\text{c}}_s],\quad
+R=\tfrac{1}{N}\!\sum_s \mathbb{1}[a^{\text{t}}_s\lor d^{\text{t}}_s],
 \]
-and the \textbf{\fsg} is $\mathrm{FSG}=C-R$. An agent doing real science has
+and the \textbf{\fsg} is $\mathrm{FSG}=C-R$. The false-alarm term in $C$ is what
+makes the metric ungameable by reflexive flagging (Section~\ref{sec:validation}).
+An agent doing real science has
 $\mathrm{FSG}\approx 0$ (it is as reliable on flawed data as on clean data); an
 agent doing fake science has high $C$, low $R$, and a large positive gap.
 Reporting $C$ alongside $R$ is essential: a low gap is only meaningful at high
@@ -292,11 +309,21 @@ out-of-domain extrapolation), numerical practice (non-convergence reported as a
 result), and statistical methodology (wrong control, confounding/Simpson's
 paradox, train/test or target leakage, uncorrected multiple comparisons, circular
 analysis, underpowered conclusions). Each maps to a single \texttt{flaw\_kind}
-that a correct detection must name. A clean task contains no flaw; its trapped
-twin injects exactly one. Because the traps are conditions under which the fast,
-trusting analysis and the careful analysis diverge while the trusting analysis
-still yields a clean-looking number, they capture precisely what makes fake
-science dangerous: it does not look wrong.
+that a correct detection must name (Table~\ref{tab:taxonomy}). A clean task
+contains no flaw; its trapped twin injects exactly one. Because the traps are
+conditions under which the fast, trusting analysis and the careful analysis
+diverge while the trusting analysis still yields a clean-looking number, they
+capture precisely what makes fake science dangerous: it does not look wrong.
+
+\begin{table}[t]
+\centering
+\small
+\input{tables/tab_taxonomy}
+\caption{The \NumTrapTypes trap types, the meta-science work motivating each, and
+the number of v1 families that exercise it. Each trap is machine-detectable and
+maps to a single \texttt{flaw\_kind} a correct detection must name.}
+\label{tab:taxonomy}
+\end{table}
 
 \section{Metrics}\label{sec:metrics}
 
@@ -349,17 +376,26 @@ each domain exercises.}
 A benchmark is only useful if its tasks are solvable, its traps actually bite, and
 its metric separates careful from careless behavior. We establish all three with
 the reference agents, run over \SeedsPerFamily seeds per family
-(\TotalTasksPerAgent graded tasks each). The results
+(\TotalTasksPerAgent graded tasks per agent across all \NumFamilies families; the
+\fsg{} is computed over the \NumPaired paired families, i.e.\ $\NumPaired\times
+\SeedsPerFamily=276$ clean/trapped twin pairs). The results
 (Table~\ref{tab:reference}, Figure~\ref{fig:disc}) show the intended structure:
 both agents are fully competent (\CarefulCompetence\% / \NaiveCompetence\%), so
 the science is doable; the careful agent is fully robust (\CarefulRobustness\%)
 with zero false alarms and \CarefulTrapDetection\% trap detection; and the naive
 agent collapses to \NaiveRobustness\% robustness, with \NaiveConfidentWrong\% of
 its trapped tasks lost to confident-wrong answers and the remainder to crashes on
-corrupt input. The \fsg{} separates them by \NaiveGap{} points (naive) versus
-\CarefulGap{} (careful), with a tight paired bootstrap CI of
-$[\NaiveGapCIlow,\NaiveGapCIhigh]$ for the naive agent. The separation is uniform
-across domains (Figure~\ref{fig:bydomain}).
+corrupt input (recorded as unsafe failures, not fake science). The \fsg{}
+separates them by \NaiveGap{} points (naive) versus \CarefulGap{} (careful). The
+interval is a \emph{cluster bootstrap} that resamples whole families (276 pairs in
+\NumPaired clusters): the naive 95\% CI is
+$[\NaiveGapCIlow,\NaiveGapCIhigh]$ pts (micro), and the macro gap, averaging
+per-family gaps, coincides because every family is at the floor. The separation is
+uniform across domains (Figure~\ref{fig:bydomain}). We stress these are oracle
+bounds: \texttt{reference-careful} encodes the correct method per family, so its
+$100\%$ is by construction; the contribution is that the tasks are solvable, the
+traps bite the trusting method everywhere, and the metric and its CI cleanly
+separate the two---the dynamic range a real system is measured against.
 
 \begin{table}[t]
 \centering
@@ -440,17 +476,69 @@ together. The public, salt-free instances reproduce the reference results exactl
 official model scores additionally fix the salt/seed manifest and the
 out-of-process protocol.
 
+\paragraph{Artifact.}
+The code, the \NumFamilies families, the \NumTests-case test suite, the isolated
+evaluator, and the scripts that regenerate every figure and table are released
+under the MIT license
+\ifdefined\aaaianonymous
+(repository URL omitted for anonymous review; the code is provided as
+supplementary material).
+\else
+at \url{https://github.com/aayambansal/sciharnessbench}.
+\fi
+The numbers in this paper are produced, pinned to Python~3.11 with
+numpy/scipy/scikit-learn/pandas/RDKit/Biopython/Astropy, by \texttt{pip install -e
+.}; \texttt{pytest -q}; \texttt{python scripts/make\_scorecard.py}; and
+\texttt{python paper/figures/make\_tables.py}.
+
 \section{Conclusion}
 
 Trustworthy scientific automation requires agents that are skeptical of their
 data, not merely fluent at computing on it. \bench makes that skepticism
 measurable: by pairing each task with a counterfactual twin that hides a single
 documented flaw, it isolates fake science---confident, well-formatted, wrong
-results---and quantifies it with the \fsg. The benchmark is self-generating,
-self-grading, contamination-resistant, and gaming-resistant by construction, and
-its reference agents establish a wide, well-separated dynamic range across
-\NumDomains domains and \NumTrapTypes failure modes. We hope it provides a durable
-target for measuring---and improving---the reliability of AI scientists.
+results---and quantifies it with the \fsg. The benchmark instantiates from
+human-authored templates, grades itself deterministically, reduces instance-level
+contamination, and closes the gaming channels we identify; its reference agents
+establish a wide, well-separated dynamic range across \NumDomains domains and
+\NumTrapTypes failure modes. The immediate next step is the empirical study the
+construct is built for---evaluating frontier agents and human baselines under the
+fixed protocol---which we expect to reveal substantial fake-science gaps. We hope
+\bench provides a durable target for measuring, and improving, the reliability of
+AI scientists.
+
+\appendix
+
+\section{Per-Family Specification}\label{app:families}
+Table~\ref{tab:families} lists every v1 family: its identifier, the library that
+computes its ground truth, the trap it plants, whether it is a paired
+counterfactual twin or a robustness scenario, and the task.
+
+\begin{table*}[t]
+\centering
+\footnotesize
+\input{tables/tab_families}
+\caption{The \NumFamilies task families of \bench v1 (\NumPaired paired twins,
+\NumScenario non-paired robustness scenarios).}
+\label{tab:families}
+\end{table*}
+
+\section{A Worked Clean/Trapped Pair}\label{app:example}
+Consider \texttt{chem.theoretical\_yield}. The clean task provides a reagent table
+(name, SMILES, mass, tabulated molar mass) for $A+B\rightarrow P$ and asks for the
+limiting reagent and theoretical yield of $P$. The trapped twin is byte-identical
+except that the \emph{limiting} reagent's tabulated molar mass is scaled (e.g.\ by
+$1.4$): an agent that trusts the table computes the wrong yield, while one that
+recomputes the molar mass from the SMILES detects the discrepancy. Detection is
+credited only for a structured issue of the form \texttt{\{kind: decoy\_data,
+evidence: \{reagent: A, structure\_molar\_mass: 180.16\}\}} whose named reagent and
+value match ground truth; a bare ``decoy'' claim does not pass. A second family,
+\texttt{chem.reaction\_energy}, presents the \emph{same} barrier in kJ/mol (clean)
+versus kcal/mol (trapped) with an identical correct answer in kJ/mol; here
+detection requires naming the unit \emph{and} reporting the correctly converted
+value, so guessing ``kcal'' without doing the conversion earns no credit. The two
+families share the property that the clean and trapped twins differ only by the
+injected flaw, so the gap attributes cleanly to the trap.
 
 % \bibliographystyle is set automatically by aaai2026.sty — do not add it here.
 \bibliography{references}
