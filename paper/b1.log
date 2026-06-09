@@ -49,191 +49,24 @@ ty
 )) (/Users/aayambansal/Library/texmf/tex/latex/psnfss/ts1ptm.fd)
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/psnfss/ot1phv.fd)
 
-Package natbib Warning: Citation `rein2023gpqa' on page 1 undefined on input li
-ne 97.
-
-
-Package natbib Warning: Citation `mirza2025chembench' on page 1 undefined on in
-put line 97.
-
-
-Package natbib Warning: Citation `wu2018moleculenet' on page 1 undefined on inp
-ut line 98.
-
-
-Package natbib Warning: Citation `takamoto2022pdebench' on page 1 undefined on 
-input line 99.
-
-
-Package natbib Warning: Citation `rasp2024weatherbench2' on page 1 undefined on
- input line 100.
-
-
-Package natbib Warning: Citation `notin2023proteingym' on page 1 undefined on i
-nput line 100.
-
-
-Package natbib Warning: Citation `riebesell2025matbench' on page 1 undefined on
- input line 101.
-
-
-Package natbib Warning: Citation `chen2025scienceagentbench' on page 1 undefine
-d on input line 102.
-
-
-Package natbib Warning: Citation `chan2024mlebench' on page 1 undefined on inpu
-t line 103.
-
-
-Package natbib Warning: Citation `mitchener2025bixbench' on page 1 undefined on
- input line 103.
-
-
-Package natbib Warning: Citation `jansen2024discoveryworld' on page 1 undefined
- on input line 104.
-
-
-Package natbib Warning: Citation `laurent2024labbench' on page 1 undefined on i
-nput line 105.
-
-
-Package natbib Warning: Citation `bragg2025astabench' on page 1 undefined on in
-put line 105.
-
-
 Underfull \hbox (badness 1721) in paragraph at lines 96--109
 []\OT1/ptm/m/n/10 Most AI-for-science bench-marks do not mea-sure it.
-
-LaTeX Warning: Reference `sec:taxonomy' on page 1 undefined on input line 114.
-
 
 [1{/Users/aayambansal/Library/texlive/2025basic/texmf-var/fonts/map/pdftex/updm
 ap/pdftex.map}{/usr/local/texlive/2025basic/texmf-dist/fonts/enc/dvips/base/8r.
 enc}]
-
-Package natbib Warning: Citation `rein2023gpqa' on page 2 undefined on input li
-ne 158.
-
-
-Package natbib Warning: Citation `mirza2025chembench' on page 2 undefined on in
-put line 158.
-
-
-Package natbib Warning: Citation `liang2023helm' on page 2 undefined on input l
-ine 159.
-
-
-Package natbib Warning: Citation `wu2018moleculenet' on page 2 undefined on inp
-ut line 161.
-
-
-Package natbib Warning: Citation `takamoto2022pdebench' on page 2 undefined on 
-input line 161.
-
-
-Package natbib Warning: Citation `rasp2024weatherbench2' on page 2 undefined on
- input line 162.
-
-
-Package natbib Warning: Citation `notin2023proteingym' on page 2 undefined on i
-nput line 162.
-
-
-Package natbib Warning: Citation `riebesell2025matbench' on page 2 undefined on
- input line 163.
-
-
 Underfull \hbox (badness 10000) in paragraph at lines 158--165
  \OT1/ptm/b/n/10 Knowl-edge and pre-dic-tive bench-marks. \OT1/ptm/m/n/10 Sci-e
 n-tific
 
-Package natbib Warning: Citation `chen2025scienceagentbench' on page 2 undefine
-d on input line 168.
-
-
-Package natbib Warning: Citation `chan2024mlebench' on page 2 undefined on inpu
-t line 169.
-
-
-Package natbib Warning: Citation `mitchener2025bixbench' on page 2 undefined on
- input line 169.
-
-
-Package natbib Warning: Citation `laurent2024labbench' on page 2 undefined on i
-nput line 170.
-
-
-Package natbib Warning: Citation `jansen2024discoveryworld' on page 2 undefined
- on input line 170.
-
-
-Package natbib Warning: Citation `bragg2025astabench' on page 2 undefined on in
-put line 171.
-
-
-Package natbib Warning: Citation `jimenez2024swebench' on page 2 undefined on i
-nput line 173.
-
-
-Package natbib Warning: Citation `ioannidis2005why' on page 2 undefined on inpu
-t line 184.
-
-
-Package natbib Warning: Citation `kapoor2023leakage' on page 2 undefined on inp
-ut line 185.
-
-
-Package natbib Warning: Citation `benjamini1995fdr' on page 2 undefined on inpu
-t line 186.
-
+Underfull \hbox (badness 1642) in paragraph at lines 167--180
+ \OT1/ptm/b/n/10 Agen-tic sci-ence bench-marks. \OT1/ptm/m/n/10 A grow-ing line
+ eval-u-
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsfonts/umsa.fd)
 (/usr/local/texlive/2025basic/texmf-dist/tex/latex/amsfonts/umsb.fd)
-
-Package natbib Warning: Citation `simmons2011false' on page 2 undefined on inpu
-t line 187.
-
-
-Package natbib Warning: Citation `button2013power' on page 2 undefined on input
- line 187.
-
-
-Package natbib Warning: Citation `kriegeskorte2009circular' on page 2 undefined
- on input line 188.
-
-
-Package natbib Warning: Citation `blyth1972simpson' on page 2 undefined on inpu
-t line 189.
-
-
-Package natbib Warning: Citation `leek2010batch' on page 2 undefined on input l
-ine 190.
-
-
-Package natbib Warning: Citation `courant1928cfl' on page 2 undefined on input 
-line 190.
-
-
-Package natbib Warning: Citation `tropsha2010qsar' on page 2 undefined on input
- line 191.
-
-
-Package natbib Warning: Citation `wei2022cot' on page 2 undefined on input line
- 193.
-
-
-Package natbib Warning: Citation `yao2023react' on page 2 undefined on input li
-ne 193.
-
-
-Package natbib Warning: Citation `zhang2024scientificllm' on page 2 undefined o
-n input line 195.
-
-
-
-LaTeX Warning: Reference `sec:taxonomy' on page 2 undefined on input line 205.
-
-
-LaTeX Warning: Reference `sec:metrics' on page 2 undefined on input line 215.
+Underfull \hbox (badness 1496) in paragraph at lines 182--196
+\OT1/ptm/m/n/10 lit-er-a-ture: the broad un-re-li-a-bil-ity of pub-lished find-
+ings
 
 
 Overfull \hbox (32.3894pt too wide) detected at line 222
@@ -241,63 +74,34 @@ Overfull \hbox (32.3894pt too wide) detected at line 222
 OML/cmm/m/it/10 a[]\OT1/cmr/m/n/10 ]\OML/cmm/m/it/10 ;  []R \OT1/cmr/m/n/10 = [
 ]  [] \U/msb/m/n/10 1\OT1/cmr/m/n/10 [\OML/cmm/m/it/10 a[] \OMS/cmsy/m/n/10 _ \
 OML/cmm/m/it/10 d[]\OT1/cmr/m/n/10 ]\OML/cmm/m/it/10 ;
-
-LaTeX Warning: Reference `sec:validation' on page 2 undefined on input line 227
-.
-
 (/Users/aayambansal/Library/texmf/tex/latex/psnfss/ot1pcr.fd)
+[2]
 Underfull \hbox (badness 1168) in paragraph at lines 244--253
 \OT1/pcr/m/n/10 evidence) \OT1/ptm/m/n/10 pair with the kind drawn from the pub
 -
 
-[2]
-
-LaTeX Warning: Reference `sec:problem' on page 3 undefined on input line 301.
-
-
-
-LaTeX Warning: Reference `tab:composition' on page 3 undefined on input line 32
-5.
-
 (./tables/tab_composition.tex)
-Overfull \hbox (95.1835pt too wide) in paragraph at lines 1--338
+Overfull \hbox (95.1835pt too wide) in paragraph at lines 1--343
  [][] 
-
-LaTeX Warning: Reference `tab:reference' on page 3 undefined on input line 348.
-
-
-
-LaTeX Warning: Reference `fig:disc' on page 3 undefined on input line 348.
-
-
-LaTeX Warning: Reference `fig:bydomain' on page 3 undefined on input line 357.
-
 
 [3] (./tables/tab_reference.tex)
-Overfull \hbox (96.5913pt too wide) in paragraph at lines 1--365
+Overfull \hbox (96.5913pt too wide) in paragraph at lines 1--370
  [][] 
 
-Underfull \hbox (badness 1496) in paragraph at lines 365--365
+Underfull \hbox (badness 1496) in paragraph at lines 370--370
 \OT1/ptm/m/n/10 i-da-tion, brack-et-ing the achiev-able range. ``Gap'' is the
 
-LaTeX Warning: Reference `sec:protocol' on page 4 undefined on input line 410.
 
-
-
+Underfull \vbox (badness 10000) has occurred while \output is active
 [4 <./figures/fig_discrimination.pdf> <./figures/fig_bydomain.pdf>] (./main.bbl
 
-Package natbib Warning: Empty `thebibliography' environment on input line 4.
 
+Underfull \hbox (badness 1226) in paragraph at lines 124--130
+\OT1/ptm/m/n/10 et al. 2025.  A frame-work for eval-u-at-ing the chem-i-
+
+[5]
 )
-
-Package natbib Warning: There were undefined citations.
-
-
-
-[5] (./main.aux)
-
-LaTeX Warning: There were undefined references.
-
+[6] (./main.aux)
 
 LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
@@ -315,5 +119,5 @@ aayambansal/Library/texmf/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texli
 ve/2025basic/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/20
 25basic/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025bas
 ic/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (5 pages, 165514 bytes).
+Output written on main.pdf (6 pages, 177364 bytes).
 Transcript written on main.log.

@@ -81,30 +81,27 @@ Underfull \hbox (badness 1168) in paragraph at lines 244--253
 -
 
 (./tables/tab_composition.tex)
-Overfull \hbox (95.1835pt too wide) in paragraph at lines 1--338
+Overfull \hbox (95.1835pt too wide) in paragraph at lines 1--343
  [][] 
 
 [3] (./tables/tab_reference.tex)
-Overfull \hbox (96.5913pt too wide) in paragraph at lines 1--365
+Overfull \hbox (96.5913pt too wide) in paragraph at lines 1--370
  [][] 
 
-Underfull \hbox (badness 1496) in paragraph at lines 365--365
+Underfull \hbox (badness 1496) in paragraph at lines 370--370
 \OT1/ptm/m/n/10 i-da-tion, brack-et-ing the achiev-able range. ``Gap'' is the
 
 
+Underfull \vbox (badness 10000) has occurred while \output is active
 [4 <./figures/fig_discrimination.pdf> <./figures/fig_bydomain.pdf>] (./main.bbl
 
 
-Underfull \hbox (badness 1226) in paragraph at lines 124--130
+Underfull \hbox (badness 1226) in paragraph at lines 126--132
 \OT1/ptm/m/n/10 et al. 2025.  A frame-work for eval-u-at-ing the chem-i-
 
-[5])
-
-[6] (./main.aux)
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
- )
+[5]
+)
+[6] (./main.aux) )
 (see the transcript file for additional information)</usr/local/texlive/2025bas
 ic/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texlive/202
 5basic/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive
@@ -118,5 +115,5 @@ aayambansal/Library/texmf/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texli
 ve/2025basic/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/20
 25basic/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2025bas
 ic/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (6 pages, 177438 bytes).
+Output written on main.pdf (6 pages, 177402 bytes).
 Transcript written on main.log.

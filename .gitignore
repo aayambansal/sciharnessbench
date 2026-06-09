@@ -20,5 +20,19 @@ env/
 
 # Benchmark run outputs (the committed reference artifact lives in results/ explicitly)
 shb_run_*/
+shb_isolated_*/
 /tmp_workdirs/
 *.local.json
+
+# LaTeX build artifacts (main.pdf is committed; intermediates are not)
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.blg
+paper/*.bbl
+paper/*.synctex.gz
+paper/b[0-9].log
+paper/c[0-9].log
+paper/build*.log
+paper/bib.log
+paper/cbib.log

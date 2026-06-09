@@ -274,10 +274,13 @@ solvers per family---which amortizes over unlimited instances.
 A private salt mixes into every generator and into the opaque identifiers, so the
 public, salt-free instances form a transparent development split while official
 scoring uses a held-out salt and seed range; a release is refreshed by rotating
-the salt rather than rebuilding the suite. Official evaluation additionally runs
-the agent out-of-process with only serialized public assets, so the benchmark's
-internals (generators, graders, reference solvers) are unavailable to the agent.
-We detail the threat model and protocol in the supplementary material.
+the salt rather than rebuilding the suite. We ship a stateless isolated
+evaluator that realizes the official protocol: each task runs in its own
+subprocess sandbox containing only the serialized public view and assets, under
+wall-clock and memory limits, so the benchmark's internals (generators, graders,
+reference solvers) are unavailable to the agent and no state survives between
+tasks; a timeout, crash, or unparseable submission is recorded as an unsafe
+failure. We detail the threat model and protocol in the supplementary material.
 
 \section{Trap Taxonomy}\label{sec:taxonomy}
 
@@ -298,16 +301,18 @@ science dangerous: it does not look wrong.
 \section{Metrics}\label{sec:metrics}
 
 We report, over paired families, \textbf{competence} $C$ and \textbf{robustness}
-$R$ as defined in Section~\ref{sec:problem}; the \textbf{\fsg} $C-R$ with a
-\textbf{paired bootstrap 95\% CI} obtained by resampling \texttt{(clean,trapped)}
-twins by \texttt{(family, seed)}; the \textbf{confident-wrong rate} (trapped tasks
-answered wrong, undetected, with confidence $\geq 0.5$---the directly observed
-fake-science event); the \textbf{false-alarm rate} (clean tasks on which the agent
-raised an issue or abstained); and the \textbf{trap-detection rate} (trapped tasks
-flagged with a correct, evidence-verified issue). Every metric is reported both
-micro (pooled) and macro (mean over families), because the suite is
-trap-imbalanced. Non-paired families are reported as separate robustness
-scenarios.
+$R$ as defined in Section~\ref{sec:problem} and the \textbf{\fsg} $C-R$ with a
+\textbf{cluster bootstrap 95\% CI} that resamples whole families (rather than iid
+twins) to respect within-family correlation. Because a single robustness number
+mixes distinct behaviors, we also separate, on trapped tasks, the
+\textbf{corrected-answer rate} (fixed the answer), the \textbf{detection rate}
+(flagged the flaw with verified evidence), the \textbf{wrong-undetected rate}
+(fake science, regardless of confidence), the \textbf{confident-wrong rate}
+(wrong-undetected at confidence $\geq 0.5$), and the \textbf{crash rate} (unsafe
+failures); on clean tasks we report the \textbf{false-alarm rate}. Every metric is
+given both micro (pooled) and macro (mean over families), because the suite is
+trap-imbalanced, and non-paired families are reported as separate robustness
+scenarios, never folded into the gap.
 
 The grading policy makes the metric hard to game. On a clean task, the only way to
 pass is to deliver the correct answer with no flaw claim and no abstention; a
@@ -422,7 +427,18 @@ confident-wrong rate, and the false-alarm rate, broken down by domain and trap
 type, in both cued and uncued tracks, alongside human-analyst baselines. Pre-registering
 the protocol before evaluation guards against benchmark-specific tuning.
 
-% \section{Reproducibility} % (placeholder for the AAAI reproducibility checklist)
+\section{Reproducibility}
+
+\bench is open source. Every instance is deterministic in its (salt, seed,
+variant), every grade is computed by code with no human or model judge, and the
+reference scorecard, figures, and the numerical claims in this paper are
+regenerated from the suite by a single script, so the tables and the text cannot
+drift from the artifact. The evaluation harness, the \NumFamilies families, the
+\NumTests-case test suite (including the adversarial and cross-salt
+generation-invariant tests), and the isolated official evaluator are released
+together. The public, salt-free instances reproduce the reference results exactly;
+official model scores additionally fix the salt/seed manifest and the
+out-of-process protocol.
 
 \section{Conclusion}
 
@@ -436,7 +452,7 @@ its reference agents establish a wide, well-separated dynamic range across
 \NumDomains domains and \NumTrapTypes failure modes. We hope it provides a durable
 target for measuring---and improving---the reliability of AI scientists.
 
-\bibliographystyle{aaai2026}
+% \bibliographystyle is set automatically by aaai2026.sty — do not add it here.
 \bibliography{references}
 
 \end{document}

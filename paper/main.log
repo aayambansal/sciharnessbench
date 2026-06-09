@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  9 JUN 2026 15:54
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (TeX Live 2025) (preloaded format=pdflatex 2025.3.8)  9 JUN 2026 21:41
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -357,34 +357,37 @@ Underfull \hbox (badness 1168) in paragraph at lines 244--253
 
 
 (./tables/tab_composition.tex)
-Overfull \hbox (95.1835pt too wide) in paragraph at lines 1--338
+Overfull \hbox (95.1835pt too wide) in paragraph at lines 1--343
  [][] 
  []
 
 
 
 [3] (./tables/tab_reference.tex)
-Overfull \hbox (96.5913pt too wide) in paragraph at lines 1--365
+Overfull \hbox (96.5913pt too wide) in paragraph at lines 1--370
  [][] 
  []
 
 
-Underfull \hbox (badness 1496) in paragraph at lines 365--365
+Underfull \hbox (badness 1496) in paragraph at lines 370--370
 \OT1/ptm/m/n/10 i-da-tion, brack-et-ing the achiev-able range. ``Gap'' is the
  []
 
 <figures/fig_discrimination.pdf, id=24, 238.49101pt x 158.99399pt>
 File: figures/fig_discrimination.pdf Graphic file (type pdf)
 <use figures/fig_discrimination.pdf>
-Package pdftex.def Info: figures/fig_discrimination.pdf  used on input line 371
+Package pdftex.def Info: figures/fig_discrimination.pdf  used on input line 376
 .
 (pdftex.def)             Requested size: 205.8793pt x 137.25618pt.
 <figures/fig_bydomain.pdf, id=25, 238.49101pt x 187.902pt>
 File: figures/fig_bydomain.pdf Graphic file (type pdf)
 <use figures/fig_bydomain.pdf>
-Package pdftex.def Info: figures/fig_bydomain.pdf  used on input line 380.
+Package pdftex.def Info: figures/fig_bydomain.pdf  used on input line 385.
 (pdftex.def)             Requested size: 205.8793pt x 162.21187pt.
 
+
+
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
 
 
@@ -392,19 +395,17 @@ Package pdftex.def Info: figures/fig_bydomain.pdf  used on input line 380.
 
 
 
-Underfull \hbox (badness 1226) in paragraph at lines 124--130
+Underfull \hbox (badness 1226) in paragraph at lines 126--132
 \OT1/ptm/m/n/10 et al. 2025.  A frame-work for eval-u-at-ing the chem-i-
  []
 
 
 
-[5])
+[5]
 
+)
 
-
-[6
-
-] (./main.aux)
+[6] (./main.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-01-18>
@@ -434,7 +435,7 @@ w/courier/ucrr8a.pfb></Users/aayambansal/Library/texmf/fonts/type1/urw/helvetic
 /uhvr8a.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmb
 8a.pfb></usr/local/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmr8a.pf
 b></usr/local/texlive/2025basic/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on main.pdf (6 pages, 177438 bytes).
+Output written on main.pdf (6 pages, 177402 bytes).
 PDF statistics:
  102 PDF objects out of 1000 (max. 8388607)
  61 compressed objects within 1 object stream
