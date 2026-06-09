@@ -1,9 +1,11 @@
 %File: main.tex — SciHarnessBench (AAAI 2027 submission)
 %
-% This compiles CAMERA-READY (attributed) by default. For an anonymous
-% double-blind submission, uncomment the next line:
-% \def\aaaianonymous{true}
+% Compiles ANONYMOUS (double-blind submission) by default: no author, no
+% repository URL. For the attributed camera-ready, comment out the next line.
+\def\aaaianonymous{true}
 %
+% NOTE: AAAI's 2027 author kit was not yet released at submission time; this uses
+% the (format-stable) aaai2026 style. Swap to aaai2027.sty when available.
 \documentclass[letterpaper]{article} % DO NOT CHANGE THIS
 \ifdefined\aaaianonymous
     \usepackage[submission]{aaai2026}
@@ -62,8 +64,9 @@ measures fake science directly. Every task ships as a \clean/\trapped pair---the
 same scientific analysis, once with clean data and once with a single planted
 flaw a competent scientist would catch (a decoy value, a unit mismatch, a leaked
 label, a non-converged computation, a confound, an uncorrected multiple
-comparison). The headline metric is the \fsg, the drop in accuracy from the clean
-to the trapped twin. \bench is \emph{procedurally instantiated} from
+comparison). The headline metric is the \fsg, the difference between clean and
+trapped accuracy over the counterfactual-twin families (large for an agent that is
+fooled, near zero for one that is not). \bench is \emph{procedurally instantiated} from
 human-authored templates and \emph{deterministically self-graded}: ground truth
 is computed by real scientific libraries and detection is verified against it, so
 there is no human annotation at evaluation time and no LLM judge. The design
@@ -448,7 +451,13 @@ lifted verbatim from specific papers; the methods and failure modes come from th
 literature, but the instances are synthetic so they can be regenerated and graded
 without a human. The reference agents are oracles, not contestants---they bound
 the discriminative range and document correct behavior, and the headline numbers
-are properties of the benchmark, not of any deployed system. v1 plants a single
+are properties of the benchmark, not of any deployed system. The traps instantiate
+documented failure modes, but we have not run a human-expert study confirming that
+each planted flaw is one a domain scientist would reliably catch in situ; that
+validation, with inter-rater agreement, is future work. Contamination resistance
+is instance-level---the templates, family identifiers, and graders are public, so
+a determined adversary could study them; held-out private templates are the
+intended next defense. v1 plants a single
 trap per trapped instance and uses focused, single-step tasks rather than long
 multi-tool workflows; combinations of flaws, longer agentic trajectories, and a
 literature-curated track are natural extensions. Our model evaluation
@@ -458,22 +467,25 @@ are left to the public leaderboard.
 
 \section{Model Evaluation}\label{sec:eval}
 
-We evaluate ten contemporary models spanning three providers (Anthropic Claude,
-OpenAI GPT, Google Gemini) and three capability tiers, through the
+We evaluate \NumModels contemporary models spanning three providers (Anthropic
+Claude, OpenAI GPT, Google Gemini) and three capability tiers, through the
 \texttt{(view)$\rightarrow$(answers, issues, confidence)} adapter on the
 \emph{uncued} track (the primary track; cued prompts are a diagnostic). Each model
-is run statelessly per task. Following Section~\ref{sec:design}, the official
-configuration uses the private salted split and the out-of-process harness; we
-report competence, robustness, the \fsg, the confident-wrong rate, the false-alarm
-rate, and the trap-detection rate (Table~\ref{tab:leaderboard},
-Figure~\ref{fig:models}).
+is run statelessly per task with default (greedy) decoding, \ModelSeeds seeds per
+family, giving $n=\ModelPairs$ clean/trapped twin pairs per model over the paired
+families. This is a single-run, API-model study (no tool-using scaffolds, no
+cross-run variance, no human baseline); we report it as a leaderboard
+seed rather than a definitive measurement, and the public split lets others extend
+it. We report competence, robustness, the \fsg, and the confident-wrong,
+false-alarm, and trap-detection rates (Table~\ref{tab:leaderboard},
+Figure~\ref{fig:models}); per-model cluster-bootstrap gap CIs ship in the artifact.
 
 \IfFileExists{tables/tab_leaderboard.tex}{%
 \begin{table}[t]\centering\small
 \input{tables/tab_leaderboard}
-\caption{Model leaderboard on \bench (uncued track, \SeedsPerFamily seeds per
-family, paired families; \% throughout). Lower \fsg{} is better; sorted by
-robustness.}\label{tab:leaderboard}
+\caption{Model leaderboard on \bench (uncued track, \ModelSeeds seeds per family,
+$n=\ModelPairs$ twin pairs per model; \% throughout). Lower \fsg{} is better;
+sorted by robustness.}\label{tab:leaderboard}
 \end{table}}{}
 
 \IfFileExists{figures/fig_models.pdf}{%

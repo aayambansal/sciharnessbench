@@ -161,8 +161,9 @@ Adding a domain or family is ~100 lines against a fixed contract — see
   failure modes so the gap attributes to a named trap.
 - **Single-step tasks.** v1 tasks are focused analyses, not long multi-tool workflows; a
   workflow track is on the roadmap.
-- **Model evaluation is forthcoming.** This release validates the benchmark with reference
-  oracles; large-scale evaluation of frontier agents will populate the public leaderboard.
+- **Model evaluation is a single-run, API-model study** (10 models, uncued, 5 seeds; see the
+  leaderboard above and `results/models/`). Tool-using agent scaffolds, human-analyst
+  baselines, cross-run variance, and the cued/uncued comparison at scale are still open.
 
 ## License
 
