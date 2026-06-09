@@ -289,7 +289,7 @@ def ke_generate(seed: int, variant: str) -> TaskInstance:
         trap_type=trap_type, trap_note=trap_note,
         answer={"kinetic_energy_J": ke_joules, "exceeds_threshold": exceeds,
                 "speed_m_s": v_ms},
-        grading={"rtol": 0.02, "threshold": threshold,
+        grading={"rtol": 0.02, "threshold": threshold, "converted_speed_m_s": v_ms,
                  "base_signature": base_signature(mass, threshold, v_ms),
                  "prompt_uncued": uncued})
 
@@ -298,10 +298,17 @@ def ke_grade(inst, sub):
     correct = (parse_bool(sub.answers.get("exceeds_threshold")) == inst.answer["exceeds_threshold"]
                and approx(sub.answers.get("kinetic_energy_J"),
                           inst.answer["kinetic_energy_J"], rtol=inst.grading["rtol"]))
+    converted_v = inst.grading.get("converted_speed_m_s")
+
+    def ev_ok(ev):
+        # Require BOTH the stated (km/h) unit token AND the correctly converted
+        # SI speed (m/s): naming the unit without converting is not detection.
+        names_unit = (ev_contains(ev, "km/h") or ev_contains(ev, "kmh")
+                      or ev_contains(ev, "km per hour") or ev_contains(ev, "km/hr"))
+        return names_unit and ev_near(ev, converted_v, rtol=0.03)
+
     return standard_grade(inst, sub, answer_correct=correct, flaw_kind="unit_mismatch",
-                          evidence_ok=lambda ev: ev_contains(ev, "km/h")
-                          or ev_contains(ev, "kmh") or ev_contains(ev, "km per hour")
-                          or ev_contains(ev, "km/hr"))
+                          evidence_ok=ev_ok)
 
 
 def _ke_solve(view: AgentView, careful: bool) -> Submission:

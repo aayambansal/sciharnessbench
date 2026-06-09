@@ -380,7 +380,9 @@ def _lc_solve(view: AgentView, careful: bool) -> Submission:
     span = float(np.max(t) - np.min(t))
     p0 = [0.05, float(t[int(np.argmin(flux))]), span / 20.0, baseline0]
     try:
-        popt, _ = curve_fit(_dip, t, flux, p0=p0, maxfev=10000)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            popt, _ = curve_fit(_dip, t, flux, p0=p0, maxfev=10000)
         naive_depth = float(popt[0])
     except Exception:
         naive_depth = float(np.median(flux) - np.min(flux))  # still asserts a number
@@ -474,7 +476,7 @@ def mg_generate(seed: int, variant: str) -> TaskInstance:
         trap_type=trap_type, trap_note=trap_note,
         answer={"detectable": bool(detectable), "source_magnitude": float(source_mag),
                 "limit_mag": limit_mag},
-        grading={"rtol": 0.02,
+        grading={"rtol": 0.02, "converted_magnitude": float(source_mag),
                  "base_signature": base_signature(source_mag, limit_mag),
                  "prompt_uncued": uncued},
     )
@@ -484,10 +486,19 @@ def mg_grade(inst, sub):
     correct = (parse_bool(sub.answers.get("detectable")) == inst.answer["detectable"]
                and approx(sub.answers.get("source_magnitude"),
                           inst.answer["source_magnitude"], rtol=inst.grading["rtol"]))
+    converted_mag = inst.grading.get("converted_magnitude")
+
+    def ev_ok(ev):
+        # Require BOTH the stated (linear-flux) unit token AND the correctly
+        # converted AB magnitude: naming "flux" without converting is not detection.
+        # A tight absolute tolerance keeps the (>=0.3 mag away) limiting magnitude
+        # from accidentally satisfying the converted-magnitude check.
+        names_unit = (ev_contains(ev, "flux") or ev_contains(ev, "njy")
+                      or ev_contains(ev, "jy") or ev_contains(ev, "linear"))
+        return names_unit and ev_near(ev, converted_mag, rtol=0.0, atol=0.1)
+
     return standard_grade(inst, sub, answer_correct=correct, flaw_kind="unit_mismatch",
-                          evidence_ok=lambda ev: ev_contains(ev, "flux")
-                          or ev_contains(ev, "njy") or ev_contains(ev, "jy")
-                          or ev_contains(ev, "linear"))
+                          evidence_ok=ev_ok)
 
 
 def _mg_solve(view: AgentView, careful: bool) -> Submission:

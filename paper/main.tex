@@ -1,0 +1,442 @@
+%File: main.tex — SciHarnessBench (AAAI 2027 submission)
+%
+% This compiles CAMERA-READY (attributed) by default. For an anonymous
+% double-blind submission, uncomment the next line:
+% \def\aaaianonymous{true}
+%
+\documentclass[letterpaper]{article} % DO NOT CHANGE THIS
+\ifdefined\aaaianonymous
+    \usepackage[submission]{aaai2026}
+\else
+    \usepackage{aaai2026}
+\fi
+\usepackage{times}  % DO NOT CHANGE THIS
+\usepackage{helvet} % DO NOT CHANGE THIS
+\usepackage{courier}  % DO NOT CHANGE THIS
+\usepackage[hyphens]{url}  % DO NOT CHANGE THIS
+\usepackage{graphicx} % DO NOT CHANGE THIS
+\urlstyle{rm} % DO NOT CHANGE THIS
+\def\UrlFont{\rm}  % DO NOT CHANGE THIS
+\usepackage{natbib}  % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\usepackage{caption} % DO NOT CHANGE THIS AND DO NOT ADD ANY OPTIONS TO IT
+\frenchspacing  % DO NOT CHANGE THIS
+\setlength{\pdfpagewidth}{8.5in} % DO NOT CHANGE THIS
+\setlength{\pdfpageheight}{11in} % DO NOT CHANGE THIS
+
+\usepackage{booktabs}
+\usepackage{xspace}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\pdfinfo{
+/TemplateVersion (2026.1)
+}
+
+\input{macros}
+
+\setcounter{secnumdepth}{2}
+
+\title{SciHarnessBench: A Self-Generating Benchmark for Fake Science in AI Scientific Agents}
+
+\author{
+    Aayam Bansal
+}
+\affiliations{
+    Synthetic Sciences \\
+    aayambansal@gmail.com
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Autonomous AI agents increasingly carry out scientific analyses end to end, yet
+existing benchmarks largely measure whether a model \emph{knows} science or
+whether it can \emph{complete} a workflow---not whether it catches the data flaws
+that turn a plausible workflow into a wrong conclusion. We call this failure mode
+\emph{fake science}: a confident, well-formatted, and incorrect result produced
+because the agent trusted flawed data. We introduce \bench, a benchmark that
+measures fake science directly. Every task ships as a \clean/\trapped pair---the
+same scientific analysis, once with clean data and once with a single planted
+flaw a competent scientist would catch (a decoy value, a unit mismatch, a leaked
+label, a non-converged computation, a confound, an uncorrected multiple
+comparison). The headline metric is the \fsg, the drop in accuracy from the clean
+to the trapped twin. \bench is \emph{procedurally instantiated} from
+human-authored templates and \emph{deterministically self-graded}: ground truth
+is computed by real scientific libraries and detection is verified against it, so
+there is no human annotation at evaluation time and no LLM judge. The design is
+contamination-resistant (instances regenerate under a private salt), opaque (the
+agent never sees the variant), and gaming-resistant (flagging or abstaining on a
+clean task is a false alarm that scores zero; detection requires structured,
+evidence-bearing flaw reports). v1 spans \NumDomains domains, \NumFamilies task
+families, and all \NumTrapTypes trap types. Two reference agents validate the
+design: a careful agent that validates inputs passes clean and trapped tasks
+(gap \CarefulGap pts), while a naive agent that trusts inputs solves clean tasks
+but fails essentially every trap (gap \NaiveGap pts; \NaiveConfidentWrong\% of
+failures are confident-wrong), confirming that \bench isolates fake science with
+a wide, well-separated dynamic range. We release the benchmark, harness, tests,
+and evaluation protocol.
+\end{abstract}
+
+\section{Introduction}
+
+AI systems are moving from answering scientific questions to \emph{conducting}
+science: writing and running analysis code, calling domain tools, and reporting
+conclusions with little human oversight. The central question for trusting such
+an agent is not whether it can produce an analysis, but whether the analysis is
+\emph{right}---and, crucially, whether the agent notices when the data make the
+obvious analysis wrong. A scientist's value lies as much in skepticism as in
+computation: checking units, validating inputs, confirming a solver converged,
+guarding against confounds and leakage. An agent that skips these steps can
+produce output that looks impeccable and is completely wrong. We call this
+\emph{fake science}.
+
+Most AI-for-science benchmarks do not measure it. Knowledge benchmarks such as
+GPQA \cite{rein2023gpqa} and ChemBench \cite{mirza2025chembench} test what a
+model knows. Predictive benchmarks such as MoleculeNet \cite{wu2018moleculenet},
+PDEBench \cite{takamoto2022pdebench}, WeatherBench~2
+\cite{rasp2024weatherbench2}, ProteinGym \cite{notin2023proteingym}, and Matbench
+Discovery \cite{riebesell2025matbench} test predictive accuracy on fixed tasks.
+Agentic benchmarks such as ScienceAgentBench \cite{chen2025scienceagentbench},
+MLE-bench \cite{chan2024mlebench}, BixBench \cite{mitchener2025bixbench},
+DiscoveryWorld \cite{jansen2024discoveryworld}, LAB-Bench
+\cite{laurent2024labbench}, and AstaBench \cite{bragg2025astabench} test whether
+an agent can \emph{complete} a data-driven workflow. All are valuable, and none
+directly asks the question that predicts trust: \emph{when the data hide a flaw,
+does the agent catch it or confidently report a wrong result?}
+
+We introduce \bench to measure exactly this. Its core construct is the
+\clean/\trapped pair: a scientific task instantiated twice from the same template
+and seed, identical in every respect except that the trapped twin contains one
+planted flaw drawn from a taxonomy of \NumTrapTypes documented, machine-detectable
+failure modes (Section~\ref{sec:taxonomy}). An agent's \emph{competence} is its
+accuracy on clean tasks; its \emph{robustness} is its accuracy on trapped tasks;
+the \fsg{} is the difference. Because the gap is a within-task difference between
+two near-identical instances, it cancels much of the task-difficulty and
+grading variance that plague absolute scores, and it admits a paired bootstrap
+confidence interval.
+
+Three design choices make \bench scalable, durable, and trustworthy. (i) It is
+\textbf{self-generating and self-grading}: tasks are procedurally instantiated
+from human-authored templates and graded by deterministic code, with ground
+truth computed by real scientific libraries (RDKit, SciPy, scikit-learn,
+Biopython, Astropy). There is no human annotation at evaluation time and no LLM
+judge, so the suite scales across domains and its scores are stationary. (ii) It
+is \textbf{contamination-resistant}: instances regenerate under a private salt,
+so a memorized public set confers no advantage and a release can be refreshed
+rather than rebuilt. (iii) It is \textbf{gaming-resistant}: the agent sees an
+opaque task identifier (never the variant or seed), detection requires a
+structured flaw report whose evidence is verified against ground truth, and a
+flaw claim or abstention on a clean task is a false alarm that scores zero---so
+``always flag'' and ``always abstain'' strategies destroy competence rather than
+inflate robustness.
+
+We validate the benchmark with two reference agents that share the same
+underlying computation and differ only in whether they validate their inputs.
+The careful agent attains \CarefulCompetence\% competence and
+\CarefulRobustness\% robustness (gap \CarefulGap pts) without ever false-alarming
+on a clean task; the naive agent attains \NaiveCompetence\% competence but
+\NaiveRobustness\% robustness (gap \NaiveGap pts), confirming that the tasks are
+solvable, the traps are not detectable by the trusting strategy, and the metric
+separates the two with a wide margin. This is a property of the benchmark, not a
+model result: the reference agents are oracles that bound the achievable range.
+
+Our contributions are: (1) \emph{fake science} as a measurable construct and the
+\clean/\trapped paired design with the \fsg{} metric; (2) a self-generating,
+self-grading, contamination- and gaming-resistant harness realizing it across
+\NumDomains scientific domains and \NumTrapTypes failure modes; (3) a taxonomy of
+machine-detectable scientific failure modes grounded in the meta-science
+literature; and (4) reference-agent and adversarial validation establishing the
+benchmark's discriminative range and its resistance to gaming. We release
+everything as open source.
+
+\section{Related Work}
+
+\paragraph{Knowledge and predictive benchmarks.}
+Scientific knowledge benchmarks \cite{rein2023gpqa,mirza2025chembench} and broad
+evaluation suites \cite{liang2023helm} probe what a model knows. Predictive
+benchmarks fix a task and score accuracy: molecular properties
+\cite{wu2018moleculenet}, PDE dynamics \cite{takamoto2022pdebench}, weather
+\cite{rasp2024weatherbench2}, protein fitness \cite{notin2023proteingym}, and
+materials stability \cite{riebesell2025matbench}. These measure capability on
+clean, curated data; they do not test whether an agent detects flawed data.
+
+\paragraph{Agentic science benchmarks.}
+A growing line evaluates tool-using agents on end-to-end tasks:
+ScienceAgentBench \cite{chen2025scienceagentbench}, MLE-bench
+\cite{chan2024mlebench}, BixBench \cite{mitchener2025bixbench}, LAB-Bench
+\cite{laurent2024labbench}, DiscoveryWorld \cite{jansen2024discoveryworld}, and
+the AstaBench scientific-agent suite \cite{bragg2025astabench}, alongside
+software-engineering agent benchmarks such as SWE-bench
+\cite{jimenez2024swebench}. These reward \emph{completing} a workflow and getting
+a defensible answer. \bench is complementary and orthogonal: it holds the
+workflow fixed and asks whether the agent's conclusion survives a planted data
+flaw, scoring the \emph{gap} rather than absolute task success. To our knowledge
+no prior benchmark uses counterfactual clean/trapped pairs to isolate
+fake-science failures, nor grades scientific-agent behavior with structured,
+evidence-verified flaw reports.
+
+\paragraph{Failure modes and meta-science.}
+Our taxonomy operationalizes documented failure modes from the meta-science
+literature: the broad unreliability of published findings
+\cite{ioannidis2005why}, data leakage as a reproducibility threat in ML-based
+science \cite{kapoor2023leakage}, false-discovery control under multiple testing
+\cite{benjamini1995fdr}, $p$-hacking and researcher degrees of freedom
+\cite{simmons2011false}, underpowered studies \cite{button2013power}, circular
+analysis / double dipping \cite{kriegeskorte2009circular}, confounding and
+Simpson's paradox \cite{blyth1972simpson}, batch effects in high-throughput data
+\cite{leek2010batch}, numerical stability conditions \cite{courant1928cfl}, and
+model applicability domains \cite{tropsha2010qsar}. \bench turns each into a
+machine-checkable trap. Contemporary agents typically reason with chain-of-thought
+\cite{wei2022cot} and tool use \cite{yao2023react}; whether that reasoning
+includes the relevant skepticism is precisely what we measure
+\cite{zhang2024scientificllm}.
+
+\section{The Fake-Science Problem}\label{sec:problem}
+
+We formalize fake science as a property of an agent's behavior on a pair of
+instances. A \emph{task family} $\mathcal{F}$ is a procedure that, given a seed
+$s$ and a variant $v\in\{\clean,\trapped\}$, deterministically produces a task
+instance. The clean instance $x^{\text{c}}_s$ and the trapped instance
+$x^{\text{t}}_s$ share an identical base---same underlying system, data, and
+question---and differ only by a single injected flaw $\delta$ in the trapped
+twin, drawn from the taxonomy of Section~\ref{sec:taxonomy}. We call such a family
+\emph{paired}; families whose variants necessarily differ in more than $\delta$
+(e.g.\ a change in the underlying signal or sample) are marked \emph{non-paired}
+and reported as separate robustness scenarios, never folded into the gap.
+
+An agent maps a task to an answer, an optional set of flaw reports, and a
+confidence. For an instance, let $a$ be the indicator that the agent's answer is
+the scientifically correct value \emph{for that instance} (the clean answer for a
+clean task; the flaw-corrected answer for a trapped task), and let $d$ be the
+indicator that the agent reported the planted flaw with verifiable evidence
+(Section~\ref{sec:metrics}). A trapped instance is handled correctly if the agent
+either corrects the answer or detects the flaw ($a\lor d$); the dangerous
+outcome---\emph{fake science}---is a wrong answer asserted confidently and without
+detection. For a family with $N$ seeds,
+\[
+\text{Competence } C=\tfrac{1}{N}\!\sum_s \mathbb{1}[a^{\text{c}}_s],\quad
+\text{Robustness } R=\tfrac{1}{N}\!\sum_s \mathbb{1}[a^{\text{t}}_s\lor d^{\text{t}}_s],
+\]
+and the \textbf{\fsg} is $\mathrm{FSG}=C-R$. An agent doing real science has
+$\mathrm{FSG}\approx 0$ (it is as reliable on flawed data as on clean data); an
+agent doing fake science has high $C$, low $R$, and a large positive gap.
+Reporting $C$ alongside $R$ is essential: a low gap is only meaningful at high
+competence, and as we show in Section~\ref{sec:validation} this pairing is what
+makes the metric immune to trivial gaming.
+
+\section{Benchmark Design}\label{sec:design}
+
+\paragraph{The task contract.}
+Each family exposes a generator, a grader, and two reference solvers, all behind a
+fixed contract. The harness generates an instance, writes its assets into an
+\emph{opaque} working directory, and hands the agent an \texttt{AgentView}
+containing only the public fields: an opaque task identifier, the domain and
+family, the prompt, the asset files, the requested answer fields, and the
+controlled vocabulary of flaw kinds it may report. The variant, seed, ground
+truth, and grading payload are never present in the view. The opaque identifier
+is a salted hash, so it reveals neither \clean/\trapped nor the seed, and twins
+hash to unrelated values.
+
+\paragraph{Structured, evidence-bearing detection.}
+An agent returns answers, a list of structured \emph{issues}---each a
+\texttt{(kind, evidence)} pair with the kind drawn from the published
+vocabulary---a boolean abstention, and a confidence in $[0,1]$. Detection of a
+trap is credited only if the submission contains an issue of the family's correct
+\texttt{flaw\_kind} whose evidence the grader verifies against ground truth: the
+exact offending record ids, the detected unit, the non-converged residual, the
+leaking feature name. Free-text is not searched for keywords. This closes the
+keyword-stuffing channel: naming the right flaw without the right evidence does
+not pass.
+
+\paragraph{Reference agents.}
+Two reference solvers per family operate only on the public view. The
+\emph{naive} solver performs the intended computation but trusts every input and
+answers with full confidence; the \emph{careful} solver runs the validation a
+competent scientist would (parse and sanity-check inputs, check units, confirm
+convergence, recompute from primary data, test for confounds) and either corrects
+the answer or emits a structured, evidence-bearing issue. These are not systems
+under test; they are oracles that bound the achievable range and document, per
+family, what fake-science versus real-science behavior looks like. A model under
+test is supplied through an adapter that receives only the same public view.
+
+\paragraph{Self-generation and grading.}
+Ground truth is computed at generation time by the relevant scientific library
+and stored hidden on the instance; the grader compares the submission to it and
+verifies any flaw report. No human annotates instances and no model judges them,
+so generation and grading are cheap, deterministic, and reproducible. The cost is
+human \emph{template} authoring---one generator, grader, and pair of reference
+solvers per family---which amortizes over unlimited instances.
+
+\paragraph{Contamination resistance and isolation.}
+A private salt mixes into every generator and into the opaque identifiers, so the
+public, salt-free instances form a transparent development split while official
+scoring uses a held-out salt and seed range; a release is refreshed by rotating
+the salt rather than rebuilding the suite. Official evaluation additionally runs
+the agent out-of-process with only serialized public assets, so the benchmark's
+internals (generators, graders, reference solvers) are unavailable to the agent.
+We detail the threat model and protocol in the supplementary material.
+
+\section{Trap Taxonomy}\label{sec:taxonomy}
+
+\bench plants flaws from \NumTrapTypes failure modes, each chosen to be (a) a
+documented scientific error and (b) machine-detectable---a grader can decide,
+without a human, whether the agent fell for it. They span data trust (decoy
+values, corrupt or invalid inputs), quantitative reasoning (unit mismatches,
+out-of-domain extrapolation), numerical practice (non-convergence reported as a
+result), and statistical methodology (wrong control, confounding/Simpson's
+paradox, train/test or target leakage, uncorrected multiple comparisons, circular
+analysis, underpowered conclusions). Each maps to a single \texttt{flaw\_kind}
+that a correct detection must name. A clean task contains no flaw; its trapped
+twin injects exactly one. Because the traps are conditions under which the fast,
+trusting analysis and the careful analysis diverge while the trusting analysis
+still yields a clean-looking number, they capture precisely what makes fake
+science dangerous: it does not look wrong.
+
+\section{Metrics}\label{sec:metrics}
+
+We report, over paired families, \textbf{competence} $C$ and \textbf{robustness}
+$R$ as defined in Section~\ref{sec:problem}; the \textbf{\fsg} $C-R$ with a
+\textbf{paired bootstrap 95\% CI} obtained by resampling \texttt{(clean,trapped)}
+twins by \texttt{(family, seed)}; the \textbf{confident-wrong rate} (trapped tasks
+answered wrong, undetected, with confidence $\geq 0.5$---the directly observed
+fake-science event); the \textbf{false-alarm rate} (clean tasks on which the agent
+raised an issue or abstained); and the \textbf{trap-detection rate} (trapped tasks
+flagged with a correct, evidence-verified issue). Every metric is reported both
+micro (pooled) and macro (mean over families), because the suite is
+trap-imbalanced. Non-paired families are reported as separate robustness
+scenarios.
+
+The grading policy makes the metric hard to game. On a clean task, the only way to
+pass is to deliver the correct answer with no flaw claim and no abstention; a
+false alarm scores zero. On a trapped task, passing requires the corrected answer
+or a verified structured detection; a bare abstention or a wrong-kind/unverifiable
+flag does not count. A crash on malformed input is recorded as an unsafe failure
+(score zero) but, unlike a confident wrong answer, is \emph{not} counted as fake
+science---these are distinct outcomes a benchmark should not conflate. Because
+false alarms fail clean tasks, an agent cannot inflate robustness by flagging or
+abstaining everywhere without destroying its competence; the only route to a low
+gap is to be genuinely competent and robust.
+
+\section{Benchmark Composition}\label{sec:composition}
+
+Table~\ref{tab:composition} summarizes v1: \NumFamilies families across
+\NumDomains domains, exercising all \NumTrapTypes trap types, with
+\NumPaired paired families and \NumScenario non-paired robustness scenarios.
+Every family is grounded in a real library, so its ground truth reflects actual
+scientific computation rather than a hand-coded answer key. Each instance also
+carries a neutral \emph{cued} prompt and an \emph{uncued} variant with no trap
+vocabulary, enabling separate reporting of cued and uncued performance.
+
+\begin{table}[t]
+\centering
+\small
+\input{tables/tab_composition}
+\caption{Composition of \bench v1: domains, family counts, and the trap types
+each domain exercises.}
+\label{tab:composition}
+\end{table}
+
+\section{Reference-Agent Validation}\label{sec:validation}
+
+A benchmark is only useful if its tasks are solvable, its traps actually bite, and
+its metric separates careful from careless behavior. We establish all three with
+the reference agents, run over \SeedsPerFamily seeds per family
+(\TotalTasksPerAgent graded tasks each). The results
+(Table~\ref{tab:reference}, Figure~\ref{fig:disc}) show the intended structure:
+both agents are fully competent (\CarefulCompetence\% / \NaiveCompetence\%), so
+the science is doable; the careful agent is fully robust (\CarefulRobustness\%)
+with zero false alarms and \CarefulTrapDetection\% trap detection; and the naive
+agent collapses to \NaiveRobustness\% robustness, with \NaiveConfidentWrong\% of
+its trapped tasks lost to confident-wrong answers and the remainder to crashes on
+corrupt input. The \fsg{} separates them by \NaiveGap{} points (naive) versus
+\CarefulGap{} (careful), with a tight paired bootstrap CI of
+$[\NaiveGapCIlow,\NaiveGapCIhigh]$ for the naive agent. The separation is uniform
+across domains (Figure~\ref{fig:bydomain}).
+
+\begin{table}[t]
+\centering
+\small
+\input{tables/tab_reference}
+\caption{Reference-agent bounds (\%). The two oracles share the same computation
+and differ only in input validation, bracketing the achievable range. ``Gap'' is
+the \fsg{} $C-R$.}
+\label{tab:reference}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.86\columnwidth]{figures/fig_discrimination}
+\caption{The benchmark's dynamic range. Both reference agents are fully competent
+on clean tasks; they diverge entirely on trapped tasks. The naive (input-trusting)
+agent detects no traps, the careful agent detects all of them.}
+\label{fig:disc}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.86\columnwidth]{figures/fig_bydomain}
+\caption{\fsg{} of the naive reference agent by domain. The trap effect is large
+and uniform across all \NumDomains domains; the careful agent's gap is zero
+everywhere (omitted).}
+\label{fig:bydomain}
+\end{figure}
+
+\paragraph{Resistance to gaming.}
+We verify the metric cannot be cheated by the strategies that defeat naive
+benchmark designs. An agent that stuffs every flaw kind onto every task, and an
+agent that abstains on every task, both collapse to near-zero competence, because
+their flags and abstentions are false alarms on the clean twins. An agent that
+attempts to read the variant off the task identifier finds only an opaque hash. An
+agent that names the correct flaw kind but supplies fabricated evidence is not
+credited with detection. These are encoded as adversarial regression tests that
+must continue to fail, alongside per-family discrimination tests and a property
+test that no clean/trapped label or seed appears in any view or file path.
+
+\section{Limitations}\label{sec:limitations}
+
+\bench is procedurally generated and grounded in real computation rather than
+lifted verbatim from specific papers; the methods and failure modes come from the
+literature, but the instances are synthetic so they can be regenerated and graded
+without a human. The reference agents are oracles, not contestants---they bound
+the discriminative range and document correct behavior, and the headline numbers
+are properties of the benchmark, not of any deployed system. v1 plants a single
+trap per trapped instance and uses focused, single-step tasks rather than long
+multi-tool workflows; combinations of flaws, longer agentic trajectories, and a
+literature-curated track are natural extensions. Finally, this release validates
+the construct with reference oracles; large-scale evaluation of frontier agents is
+the subject of ongoing work (Section~\ref{sec:protocol}).
+
+\section{Model-Evaluation Protocol}\label{sec:protocol}
+
+We deliberately separate \emph{building and validating} the benchmark from
+\emph{evaluating} systems on it. Frontier model and agent results are not reported
+here; they will populate a public leaderboard under the protocol fixed in this
+paper. Each system is run out-of-process on the private salted split with only
+serialized public assets, under per-task time and memory limits, through the
+\texttt{(view)$\rightarrow$(answers, issues, confidence)} adapter. We will report,
+for each system, competence, robustness, the \fsg{} with its CI, the
+confident-wrong rate, and the false-alarm rate, broken down by domain and trap
+type, in both cued and uncued tracks, alongside human-analyst baselines. Pre-registering
+the protocol before evaluation guards against benchmark-specific tuning.
+
+% \section{Reproducibility} % (placeholder for the AAAI reproducibility checklist)
+
+\section{Conclusion}
+
+Trustworthy scientific automation requires agents that are skeptical of their
+data, not merely fluent at computing on it. \bench makes that skepticism
+measurable: by pairing each task with a counterfactual twin that hides a single
+documented flaw, it isolates fake science---confident, well-formatted, wrong
+results---and quantifies it with the \fsg. The benchmark is self-generating,
+self-grading, contamination-resistant, and gaming-resistant by construction, and
+its reference agents establish a wide, well-separated dynamic range across
+\NumDomains domains and \NumTrapTypes failure modes. We hope it provides a durable
+target for measuring---and improving---the reliability of AI scientists.
+
+\bibliographystyle{aaai2026}
+\bibliography{references}
+
+\end{document}

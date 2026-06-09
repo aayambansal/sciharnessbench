@@ -1,0 +1,233 @@
+\begin{thebibliography}{28}
+\providecommand{\natexlab}[1]{#1}
+
+\bibitem[{Benjamini and Hochberg(1995)}]{benjamini1995fdr}
+Benjamini, Y.; and Hochberg, Y. 1995.
+\newblock Controlling the False Discovery Rate: A Practical and Powerful
+  Approach to Multiple Testing.
+\newblock \emph{Journal of the Royal Statistical Society: Series B
+  (Methodological)}, 57(1): 289--300.
+
+\bibitem[{Blyth(1972)}]{blyth1972simpson}
+Blyth, C.~R. 1972.
+\newblock On {Simpson's} Paradox and the Sure-Thing Principle.
+\newblock \emph{Journal of the American Statistical Association}, 67(338):
+  364--366.
+
+\bibitem[{Bragg et~al.(2026)Bragg, D'Arcy, Balepur, Bareket, Dalvi, Feldman
+  et~al.}]{bragg2025astabench}
+Bragg, J.; D'Arcy, M.; Balepur, N.; Bareket, D.; Dalvi, B.; Feldman, S.; et~al.
+  2026.
+\newblock {AstaBench}: Rigorous Benchmarking of {AI} Agents with a Scientific
+  Research Suite.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}.
+\newblock Allen Institute for AI (Ai2).
+
+\bibitem[{Button et~al.(2013)Button, Ioannidis, Mokrysz, Nosek, Flint,
+  Robinson, and Munaf{\`o}}]{button2013power}
+Button, K.~S.; Ioannidis, J. P.~A.; Mokrysz, C.; Nosek, B.~A.; Flint, J.;
+  Robinson, E. S.~J.; and Munaf{\`o}, M.~R. 2013.
+\newblock Power failure: why small sample size undermines the reliability of
+  neuroscience.
+\newblock \emph{Nature Reviews Neuroscience}, 14(5): 365--376.
+
+\bibitem[{Chan et~al.(2025)Chan, Chowdhury, Jaffe, Aung, Sherburn, Mays,
+  Starace, Liu, Maksin, Patwardhan, Weng, and Madry}]{chan2024mlebench}
+Chan, J.~S.; Chowdhury, N.; Jaffe, O.; Aung, J.; Sherburn, D.; Mays, E.;
+  Starace, G.; Liu, K.; Maksin, L.; Patwardhan, T.; Weng, L.; and Madry, A.
+  2025.
+\newblock {MLE-bench}: Evaluating Machine Learning Agents on Machine Learning
+  Engineering.
+\newblock OpenAI.
+
+\bibitem[{Chen et~al.(2025)Chen, Chen, Ning, Zhang, Wang, Yu, Li, Liao, Wei,
+  Lu, Dey, Xue, Baker, Burns, Adu-Ampratwum, Huang, Ning, Gao, Su, and
+  Sun}]{chen2025scienceagentbench}
+Chen, Z.; Chen, S.; Ning, Y.; Zhang, Q.; Wang, B.; Yu, B.; Li, Y.; Liao, Z.;
+  Wei, C.; Lu, Z.; Dey, V.; Xue, M.; Baker, F.~N.; Burns, B.; Adu-Ampratwum,
+  D.; Huang, X.; Ning, X.; Gao, S.; Su, Y.; and Sun, H. 2025.
+\newblock {ScienceAgentBench}: Toward Rigorous Assessment of Language Agents
+  for Data-Driven Scientific Discovery.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}.
+
+\bibitem[{Courant, Friedrichs, and Lewy(1928)}]{courant1928cfl}
+Courant, R.; Friedrichs, K.; and Lewy, H. 1928.
+\newblock {\"U}ber die partiellen Differenzengleichungen der mathematischen
+  Physik.
+\newblock \emph{Mathematische Annalen}, 100(1): 32--74.
+\newblock Original statement of the Courant--Friedrichs--Lewy (CFL) stability
+  condition.
+
+\bibitem[{Ioannidis(2005)}]{ioannidis2005why}
+Ioannidis, J. P.~A. 2005.
+\newblock Why Most Published Research Findings Are False.
+\newblock \emph{PLoS Medicine}, 2(8): e124.
+
+\bibitem[{Jansen et~al.(2024)Jansen, C{\^o}t{\'e}, Khot, Bransom, Mishra,
+  Majumder, Tafjord, and Clark}]{jansen2024discoveryworld}
+Jansen, P.; C{\^o}t{\'e}, M.-A.; Khot, T.; Bransom, E.; Mishra, B.~D.;
+  Majumder, B.~P.; Tafjord, O.; and Clark, P. 2024.
+\newblock {DiscoveryWorld}: A Virtual Environment for Developing and Evaluating
+  Automated Scientific Discovery Agents.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS),
+  Datasets and Benchmarks Track}.
+
+\bibitem[{Jimenez et~al.(2024)Jimenez, Yang, Wettig, Yao, Pei, Press, and
+  Narasimhan}]{jimenez2024swebench}
+Jimenez, C.~E.; Yang, J.; Wettig, A.; Yao, S.; Pei, K.; Press, O.; and
+  Narasimhan, K. 2024.
+\newblock {SWE-bench}: Can Language Models Resolve Real-World {GitHub} Issues?
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}.
+
+\bibitem[{Kapoor and Narayanan(2023)}]{kapoor2023leakage}
+Kapoor, S.; and Narayanan, A. 2023.
+\newblock Leakage and the reproducibility crisis in machine-learning-based
+  science.
+\newblock \emph{Patterns}, 4(9): 100804.
+
+\bibitem[{Kriegeskorte et~al.(2009)Kriegeskorte, Simmons, Bellgowan, and
+  Baker}]{kriegeskorte2009circular}
+Kriegeskorte, N.; Simmons, W.~K.; Bellgowan, P. S.~F.; and Baker, C.~I. 2009.
+\newblock Circular analysis in systems neuroscience: the dangers of double
+  dipping.
+\newblock \emph{Nature Neuroscience}, 12(5): 535--540.
+
+\bibitem[{Laurent et~al.(2024)Laurent, Janizek, Ruzo, Hinks, Hammerling,
+  Narayanan, Ponnapati, White, and Rodriques}]{laurent2024labbench}
+Laurent, J.~M.; Janizek, J.~D.; Ruzo, M.; Hinks, M.~M.; Hammerling, M.~J.;
+  Narayanan, S.; Ponnapati, M.; White, A.~D.; and Rodriques, S.~G. 2024.
+\newblock {LAB-Bench}: Measuring Capabilities of Language Models for Biology
+  Research.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS),
+  Datasets and Benchmarks Track}.
+
+\bibitem[{Leek et~al.(2010)Leek, Scharpf, Bravo, Simcha, Langmead, Johnson,
+  Geman, Baggerly, and Irizarry}]{leek2010batch}
+Leek, J.~T.; Scharpf, R.~B.; Bravo, H.~C.; Simcha, D.; Langmead, B.; Johnson,
+  W.~E.; Geman, D.; Baggerly, K.; and Irizarry, R.~A. 2010.
+\newblock Tackling the widespread and critical impact of batch effects in
+  high-throughput data.
+\newblock \emph{Nature Reviews Genetics}, 11(10): 733--739.
+
+\bibitem[{Liang et~al.(2023)Liang, Bommasani, Lee, Tsipras, Soylu, Yasunaga,
+  Zhang, Narayanan, Wu, Kumar et~al.}]{liang2023helm}
+Liang, P.; Bommasani, R.; Lee, T.; Tsipras, D.; Soylu, D.; Yasunaga, M.; Zhang,
+  Y.; Narayanan, D.; Wu, Y.; Kumar, A.; et~al. 2023.
+\newblock Holistic Evaluation of Language Models.
+\newblock \emph{Transactions on Machine Learning Research (TMLR)}.
+
+\bibitem[{Mirza et~al.(2025)Mirza, Alampara, Kunchapu, R{\'i}os-Garc{\'i}a
+  et~al.}]{mirza2025chembench}
+Mirza, A.; Alampara, N.; Kunchapu, S.; R{\'i}os-Garc{\'i}a, M.; et~al. 2025.
+\newblock A framework for evaluating the chemical knowledge and reasoning
+  abilities of large language models against the expertise of chemists.
+\newblock \emph{Nature Chemistry}, 17(7): 1027--1034.
+\newblock The ChemBench benchmark; arXiv:2404.01475, ``Are large language
+  models superhuman chemists?''.
+
+\bibitem[{Mitchener et~al.(2025)Mitchener, Laurent, Andonian, Tenmann,
+  Narayanan, Wellawatte et~al.}]{mitchener2025bixbench}
+Mitchener, L.; Laurent, J.~M.; Andonian, A.; Tenmann, B.; Narayanan, S.;
+  Wellawatte, G.~P.; et~al. 2025.
+\newblock {BixBench}: a Comprehensive Benchmark for {LLM}-based Agents in
+  Computational Biology.
+\newblock \emph{arXiv preprint}.
+\newblock FutureHouse and ScienceMachine.
+
+\bibitem[{Notin et~al.(2023)Notin, Kollasch, Ritter, van Niekerk, Paul,
+  Spinner, Rollins, Shaw, Orenbuch, Weitzman, Frazer, Dias, Franceschi, Gal,
+  and Marks}]{notin2023proteingym}
+Notin, P.; Kollasch, A.; Ritter, D.; van Niekerk, L.; Paul, S.; Spinner, H.;
+  Rollins, N.; Shaw, A.; Orenbuch, R.; Weitzman, R.; Frazer, J.; Dias, M.;
+  Franceschi, D.; Gal, Y.; and Marks, D. 2023.
+\newblock {ProteinGym}: Large-Scale Benchmarks for Protein Fitness Prediction
+  and Design.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS),
+  Datasets and Benchmarks Track}.
+\newblock Preprint: bioRxiv 2023.12.07.570727.
+
+\bibitem[{Rasp et~al.(2024)Rasp, Hoyer, Merose, Langmore, Battaglia, Russell,
+  Sanchez-Gonzalez, Yang, Carver, Agrawal, Chantry, Bouallegue, Dueben,
+  Bromberg, Sisk, Barrington, Bell, and Sha}]{rasp2024weatherbench2}
+Rasp, S.; Hoyer, S.; Merose, A.; Langmore, I.; Battaglia, P.; Russell, T.;
+  Sanchez-Gonzalez, A.; Yang, V.; Carver, R.; Agrawal, S.; Chantry, M.;
+  Bouallegue, Z.~B.; Dueben, P.; Bromberg, C.; Sisk, J.; Barrington, L.; Bell,
+  A.; and Sha, F. 2024.
+\newblock {WeatherBench 2}: A Benchmark for the Next Generation of Data-Driven
+  Global Weather Models.
+\newblock \emph{Journal of Advances in Modeling Earth Systems}, 16(6):
+  e2023MS004019.
+
+\bibitem[{Rein et~al.(2024)Rein, Hou, Stickland, Petty, Pang, Dirani, Michael,
+  and Bowman}]{rein2023gpqa}
+Rein, D.; Hou, B.~L.; Stickland, A.~C.; Petty, J.; Pang, R.~Y.; Dirani, J.;
+  Michael, J.; and Bowman, S.~R. 2024.
+\newblock {GPQA}: A Graduate-Level Google-Proof {Q\&A} Benchmark.
+\newblock In \emph{Conference on Language Modeling (COLM)}.
+\newblock First released on arXiv in 2023.
+
+\bibitem[{Riebesell et~al.(2025)Riebesell, Goodall, Benner, Chiang, Deng, Lee,
+  Jain, and Persson}]{riebesell2025matbench}
+Riebesell, J.; Goodall, R. E.~A.; Benner, P.; Chiang, Y.; Deng, B.; Lee, A.~A.;
+  Jain, A.; and Persson, K.~A. 2025.
+\newblock {Matbench Discovery} -- A framework to evaluate machine learning
+  crystal stability predictions.
+\newblock \emph{Nature Machine Intelligence}.
+\newblock First released on arXiv in 2023.
+
+\bibitem[{Simmons, Nelson, and Simonsohn(2011)}]{simmons2011false}
+Simmons, J.~P.; Nelson, L.~D.; and Simonsohn, U. 2011.
+\newblock False-Positive Psychology: Undisclosed Flexibility in Data Collection
+  and Analysis Allows Presenting Anything as Significant.
+\newblock \emph{Psychological Science}, 22(11): 1359--1366.
+
+\bibitem[{Takamoto et~al.(2022)Takamoto, Praditia, Leiteritz, MacKinlay,
+  Alesiani, Pfl{\"u}ger, and Niepert}]{takamoto2022pdebench}
+Takamoto, M.; Praditia, T.; Leiteritz, R.; MacKinlay, D.; Alesiani, F.;
+  Pfl{\"u}ger, D.; and Niepert, M. 2022.
+\newblock {PDEBench}: An Extensive Benchmark for Scientific Machine Learning.
+\newblock In \emph{Advances in Neural Information Processing Systems (NeurIPS),
+  Datasets and Benchmarks Track}.
+
+\bibitem[{Tropsha(2010)}]{tropsha2010qsar}
+Tropsha, A. 2010.
+\newblock Best Practices for {QSAR} Model Development, Validation, and
+  Exploitation.
+\newblock \emph{Molecular Informatics}, 29(6-7): 476--488.
+\newblock Defines the applicability domain for QSAR extrapolation.
+
+\bibitem[{Wei et~al.(2022)Wei, Wang, Schuurmans, Bosma, Ichter, Xia, Chi, Le,
+  and Zhou}]{wei2022cot}
+Wei, J.; Wang, X.; Schuurmans, D.; Bosma, M.; Ichter, B.; Xia, F.; Chi, E.~H.;
+  Le, Q.~V.; and Zhou, D. 2022.
+\newblock Chain-of-Thought Prompting Elicits Reasoning in Large Language
+  Models.
+\newblock In \emph{Advances in Neural Information Processing Systems
+  (NeurIPS)}.
+
+\bibitem[{Wu et~al.(2018)Wu, Ramsundar, Feinberg, Gomes, Geniesse, Pappu,
+  Leswing, and Pande}]{wu2018moleculenet}
+Wu, Z.; Ramsundar, B.; Feinberg, E.~N.; Gomes, J.; Geniesse, C.; Pappu, A.~S.;
+  Leswing, K.; and Pande, V. 2018.
+\newblock {MoleculeNet}: a benchmark for molecular machine learning.
+\newblock \emph{Chemical Science}, 9(2): 513--530.
+
+\bibitem[{Yao et~al.(2023)Yao, Zhao, Yu, Du, Shafran, Narasimhan, and
+  Cao}]{yao2023react}
+Yao, S.; Zhao, J.; Yu, D.; Du, N.; Shafran, I.; Narasimhan, K.; and Cao, Y.
+  2023.
+\newblock {ReAct}: Synergizing Reasoning and Acting in Language Models.
+\newblock In \emph{International Conference on Learning Representations
+  (ICLR)}.
+
+\bibitem[{Zhang et~al.(2024)Zhang, Chen, Jin, Wang, Ji, Wang, and
+  Han}]{zhang2024scientificllm}
+Zhang, Y.; Chen, X.; Jin, B.; Wang, S.; Ji, S.; Wang, W.; and Han, J. 2024.
+\newblock A Comprehensive Survey of Scientific Large Language Models and Their
+  Applications in Scientific Discovery.
+\newblock \emph{arXiv preprint}.
+
+\end{thebibliography}

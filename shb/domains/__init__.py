@@ -9,7 +9,12 @@ benchmark robust as contributors add domains.
 from __future__ import annotations
 
 import importlib
+import os
 import warnings
+
+# In evaluation mode (SHB_STRICT=1) a domain that fails to import is fatal — an
+# official run must not silently drop a domain. Development is tolerant.
+STRICT = os.environ.get("SHB_STRICT", "") not in ("", "0", "false")
 
 DOMAIN_MODULES = [
     "chemistry",
@@ -28,5 +33,7 @@ for _name in DOMAIN_MODULES:
     try:
         importlib.import_module(f"{__name__}.{_name}")
     except Exception as exc:  # noqa: BLE001 — a contributor's domain shouldn't break others
+        if STRICT:
+            raise
         LOAD_ERRORS[_name] = f"{type(exc).__name__}: {exc}"
         warnings.warn(f"[shb] domain '{_name}' failed to load: {exc}")

@@ -7,21 +7,43 @@
     "robustness": 1.0,
     "fake_science_gap": 0.0,
     "trap_detection_rate": 1.0,
+    "corrected_answer_rate": 1.0,
+    "wrong_undetected_rate": 0.0,
     "confident_wrong_rate": 0.0,
+    "crash_rate": 0.0,
     "false_alarm_rate": 0.0,
-    "answer_correct_clean": 1.0,
-    "answer_correct_trapped": 1.0,
     "gap_ci": {
-      "gap_mean": 0.0,
+      "point": 0.0,
       "ci95_low": 0.0,
       "ci95_high": 0.0,
+      "n_families": 23,
       "n_pairs": 276
     }
   },
   "macro": {
     "fake_science_gap": 0.0,
     "competence": 1.0,
-    "robustness": 1.0
+    "robustness": 1.0,
+    "gap_ci": {
+      "point": 0.0,
+      "ci95_low": 0.0,
+      "ci95_high": 0.0,
+      "n_families": 23,
+      "n_pairs": 276
+    }
+  },
+  "scenario_headline": {
+    "n_clean": 36,
+    "n_trapped": 36,
+    "competence": 1.0,
+    "robustness": 1.0,
+    "fake_science_gap": 0.0,
+    "trap_detection_rate": 1.0,
+    "corrected_answer_rate": 1.0,
+    "wrong_undetected_rate": 0.0,
+    "confident_wrong_rate": 0.0,
+    "crash_rate": 0.0,
+    "false_alarm_rate": 0.0
   },
   "overall_all_families": {
     "n_clean": 312,
@@ -30,10 +52,11 @@
     "robustness": 1.0,
     "fake_science_gap": 0.0,
     "trap_detection_rate": 1.0,
+    "corrected_answer_rate": 1.0,
+    "wrong_undetected_rate": 0.0,
     "confident_wrong_rate": 0.0,
-    "false_alarm_rate": 0.0,
-    "answer_correct_clean": 1.0,
-    "answer_correct_trapped": 1.0
+    "crash_rate": 0.0,
+    "false_alarm_rate": 0.0
   },
   "by_domain": {
     "astronomy": {
@@ -43,10 +66,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "biology": {
       "n_clean": 36,
@@ -55,10 +79,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "chemistry": {
       "n_clean": 48,
@@ -67,10 +92,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "climate": {
       "n_clean": 36,
@@ -79,10 +105,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "materials": {
       "n_clean": 36,
@@ -91,10 +118,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "neuroscience": {
       "n_clean": 12,
@@ -103,10 +131,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "physics": {
       "n_clean": 36,
@@ -115,10 +144,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "statistics": {
       "n_clean": 36,
@@ -127,10 +157,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     }
   },
   "by_family": {
@@ -141,10 +172,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "astro.brightness_threshold": {
       "n_clean": 12,
@@ -153,10 +185,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "astro.transit_fit": {
       "n_clean": 12,
@@ -165,10 +198,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "bio.diffexpr_confounding": {
       "n_clean": 12,
@@ -177,10 +211,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "bio.gc_content": {
       "n_clean": 12,
@@ -189,10 +224,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "bio.wrong_control": {
       "n_clean": 12,
@@ -201,10 +237,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "chem.property_ranking": {
       "n_clean": 12,
@@ -213,10 +250,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "chem.qm_convergence": {
       "n_clean": 12,
@@ -225,10 +263,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "chem.reaction_energy": {
       "n_clean": 12,
@@ -237,10 +276,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "chem.theoretical_yield": {
       "n_clean": 12,
@@ -249,10 +289,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "climate.forecast_skill": {
       "n_clean": 12,
@@ -261,10 +302,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "climate.regional_threshold": {
       "n_clean": 12,
@@ -273,10 +315,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "climate.station_mean": {
       "n_clean": 12,
@@ -285,10 +328,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "mat.alloy_bandgap": {
       "n_clean": 12,
@@ -297,10 +341,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "mat.cell_density": {
       "n_clean": 12,
@@ -309,10 +354,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "mat.formation_stability": {
       "n_clean": 12,
@@ -321,10 +367,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "neuro.tuning_difference": {
       "n_clean": 12,
@@ -333,10 +380,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "phys.heat_cfl": {
       "n_clean": 12,
@@ -345,10 +393,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "phys.kinetic_threshold": {
       "n_clean": 12,
@@ -357,10 +406,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "phys.smallangle_extrapolation": {
       "n_clean": 12,
@@ -369,10 +419,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "stats.data_leakage": {
       "n_clean": 12,
@@ -381,10 +432,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "stats.simpson": {
       "n_clean": 12,
@@ -393,10 +445,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "stats.underpowered": {
       "n_clean": 12,
@@ -405,10 +458,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     }
   },
   "by_trap": {
@@ -419,10 +473,11 @@
       "robustness": 1.0,
       "fake_science_gap": null,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": null,
-      "answer_correct_clean": null,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": null
     },
     "corrupt_input": {
       "n_clean": 0,
@@ -431,10 +486,11 @@
       "robustness": 1.0,
       "fake_science_gap": null,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": null,
-      "answer_correct_clean": null,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": null
     },
     "data_leakage": {
       "n_clean": 0,
@@ -443,10 +499,11 @@
       "robustness": 1.0,
       "fake_science_gap": null,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": null,
-      "answer_correct_clean": null,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": null
     },
     "decoy_data": {
       "n_clean": 0,
@@ -455,10 +512,11 @@
       "robustness": 1.0,
       "fake_science_gap": null,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": null,
-      "answer_correct_clean": null,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": null
     },
     "extrapolation": {
       "n_clean": 0,
@@ -467,10 +525,11 @@
       "robustness": 1.0,
       "fake_science_gap": null,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": null,
-      "answer_correct_clean": null,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": null
     },
     "future_leakage": {
       "n_clean": 0,
@@ -479,10 +538,11 @@
       "robustness": 1.0,
       "fake_science_gap": null,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": null,
-      "answer_correct_clean": null,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": null
     },
     "nonconvergence": {
       "n_clean": 0,
@@ -491,10 +551,11 @@
       "robustness": 1.0,
       "fake_science_gap": null,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": null,
-      "answer_correct_clean": null,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": null
     },
     "underpowered": {
       "n_clean": 0,
@@ -503,10 +564,11 @@
       "robustness": 1.0,
       "fake_science_gap": null,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": null,
-      "answer_correct_clean": null,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": null
     },
     "unit_mismatch": {
       "n_clean": 0,
@@ -515,10 +577,11 @@
       "robustness": 1.0,
       "fake_science_gap": null,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": null,
-      "answer_correct_clean": null,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": null
     },
     "wrong_control": {
       "n_clean": 0,
@@ -527,10 +590,11 @@
       "robustness": 1.0,
       "fake_science_gap": null,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": null,
-      "answer_correct_clean": null,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": null
     }
   },
   "scenarios": {
@@ -541,10 +605,11 @@
       "robustness": 1.0,
       "fake_science_gap": 0.0,
       "trap_detection_rate": 1.0,
+      "corrected_answer_rate": 1.0,
+      "wrong_undetected_rate": 0.0,
       "confident_wrong_rate": 0.0,
-      "false_alarm_rate": 0.0,
-      "answer_correct_clean": 1.0,
-      "answer_correct_trapped": 1.0
+      "crash_rate": 0.0,
+      "false_alarm_rate": 0.0
     },
     "families": {
       "neuro.channel_responsiveness": {
@@ -554,10 +619,11 @@
         "robustness": 1.0,
         "fake_science_gap": 0.0,
         "trap_detection_rate": 1.0,
+        "corrected_answer_rate": 1.0,
+        "wrong_undetected_rate": 0.0,
         "confident_wrong_rate": 0.0,
-        "false_alarm_rate": 0.0,
-        "answer_correct_clean": 1.0,
-        "answer_correct_trapped": 1.0
+        "crash_rate": 0.0,
+        "false_alarm_rate": 0.0
       },
       "neuro.decoding_circular": {
         "n_clean": 12,
@@ -566,10 +632,11 @@
         "robustness": 1.0,
         "fake_science_gap": 0.0,
         "trap_detection_rate": 1.0,
+        "corrected_answer_rate": 1.0,
+        "wrong_undetected_rate": 0.0,
         "confident_wrong_rate": 0.0,
-        "false_alarm_rate": 0.0,
-        "answer_correct_clean": 1.0,
-        "answer_correct_trapped": 1.0
+        "crash_rate": 0.0,
+        "false_alarm_rate": 0.0
       },
       "stats.multiple_comparisons": {
         "n_clean": 12,
@@ -578,10 +645,11 @@
         "robustness": 1.0,
         "fake_science_gap": 0.0,
         "trap_detection_rate": 1.0,
+        "corrected_answer_rate": 1.0,
+        "wrong_undetected_rate": 0.0,
         "confident_wrong_rate": 0.0,
-        "false_alarm_rate": 0.0,
-        "answer_correct_clean": 1.0,
-        "answer_correct_trapped": 1.0
+        "crash_rate": 0.0,
+        "false_alarm_rate": 0.0
       }
     }
   },

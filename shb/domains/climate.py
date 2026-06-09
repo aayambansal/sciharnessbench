@@ -35,9 +35,9 @@ import numpy as np
 from .. import registry
 from ..taxonomy import TrapType
 from ..types import AgentView, Family, Submission, TaskInstance
-from ..utils import (approx, base_signature, ev_contains, ev_near, ev_numbers,
-                     ev_text, family_rng, issue, np_seed, parse_bool,
-                     standard_grade, to_float)
+from ..utils import (approx, base_signature, ev_contains, ev_near, ev_text,
+                     family_rng, issue, np_seed, parse_bool, standard_grade,
+                     to_float)
 
 KELVIN_OFFSET = 273.15
 FILL_VALUE = -9999.0
@@ -307,6 +307,7 @@ def rt_generate(seed: int, variant: str) -> TaskInstance:
         answer={"above_threshold": above, "regional_mean_degC": float(true_mean_c),
                 "unit": unit},
         grading={"rtol": 0.03, "atol": 0.3, "threshold": threshold,
+                 "converted_mean_degC": float(true_mean_c),
                  "base_signature": base_signature(
                      threshold, tuple(round(float(v), 6) for v in vals_c)),
                  "prompt_uncued": uncued})
@@ -317,14 +318,17 @@ def rt_grade(inst, sub):
     bool_ok = parse_bool(sub.answers.get("above_threshold")) == a["above_threshold"]
     mean_ok = approx(sub.answers.get("regional_mean_degC"), a["regional_mean_degC"],
                      rtol=inst.grading["rtol"], atol=inst.grading["atol"])
+    converted_c = inst.grading.get("converted_mean_degC")
+
     def ev_ok(ev):
         # Verify the SPECIFIC mismatch against ground truth: the trapped series is
-        # in kelvin, so the agent must report the kelvin scale — name the unit K /
-        # kelvin AND carry a kelvin-scale value (~273+), or carry the offset 273.15.
+        # in kelvin, so the agent must NAME the kelvin scale (unit K / kelvin) AND
+        # carry the correctly converted degC regional mean. Naming the unit, or
+        # quoting only the raw kelvin number / the 273.15 offset, is not detection.
         names_kelvin = ev_contains(ev, "kelvin") or ev_contains(ev, "unit k") \
             or (isinstance(ev, dict) and "k" in str(ev.get("detected_unit", "")).lower())
-        kelvin_scale = any(n >= 250.0 for n in ev_numbers(ev))
-        return (names_kelvin and kelvin_scale) or ev_near(ev, KELVIN_OFFSET, rtol=0.005)
+        return names_kelvin and ev_near(ev, converted_c, rtol=0.03,
+                                        atol=inst.grading["atol"])
 
     return standard_grade(inst, sub, answer_correct=(bool_ok and mean_ok),
                           flaw_kind="unit_mismatch", evidence_ok=ev_ok)

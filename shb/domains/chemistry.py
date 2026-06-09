@@ -248,15 +248,22 @@ def re_generate(seed, variant):
         trap_type=trap_type, trap_note=trap_note,
         answer={"feasible": barrier_kj < threshold, "barrier_kJ_per_mol": barrier_kj},
         grading={"rtol": 0.02, "base_signature": base_signature(barrier_kj, threshold),
-                 "prompt_uncued": uncued})
+                 "converted_kj": barrier_kj, "prompt_uncued": uncued})
 
 
 def re_grade(inst, sub):
     a = inst.answer
     correct = (parse_bool(sub.answers.get("feasible")) == a["feasible"]
                and approx(sub.answers.get("barrier_kJ_per_mol"), a["barrier_kJ_per_mol"], rtol=0.02))
+    converted_kj = inst.grading.get("converted_kj")
+
+    def ev_ok(ev):
+        # Require BOTH the stated (kcal) unit token AND the correctly converted
+        # kJ/mol value: naming the unit without doing the conversion is not detection.
+        return ev_contains(ev, "kcal") and ev_near(ev, converted_kj, rtol=0.03)
+
     return standard_grade(inst, sub, answer_correct=correct, flaw_kind="unit_mismatch",
-                          evidence_ok=lambda ev: ev_contains(ev, "kcal"))
+                          evidence_ok=ev_ok)
 
 
 def _re_solve(view, careful):

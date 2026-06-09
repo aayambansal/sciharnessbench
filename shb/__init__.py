@@ -2,12 +2,14 @@
 
 Measures whether a scientific agent produces confident-but-wrong results when
 data contains a flaw a competent scientist would catch. Every task ships as a
-clean/trapped pair; the headline metric is the gap between them. Fully
-self-generating and self-grading: no human in the loop, at authoring or eval.
+clean/trapped pair; the headline metric is the gap between them. Instances are
+procedurally instantiated from human-authored templates; deterministically
+self-graded; no human annotates individual instances at evaluation time.
 """
 from __future__ import annotations
 
 from . import registry
+from .isolated import run_isolated
 from .runner import run_benchmark, run_family, run_instance
 from .scoring import Scorecard, aggregate
 from .taxonomy import TRAP_META, TrapType
