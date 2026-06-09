@@ -100,6 +100,18 @@ guarding against confounds and leakage. An agent that skips these steps can
 produce output that looks impeccable and is completely wrong. We call this
 \emph{fake science}.
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.98\textwidth]{figures/fig_pipeline}
+\caption{\bench in one picture. Each task is generated as a clean/trapped pair
+that differs only by a single planted scientific flaw. The same agent solves
+both; a deterministic, evidence-checking grader scores them, and the
+\emph{Fake-Science Gap} (clean minus trapped accuracy) isolates how much the flaw
+degrades the agent. The gap is a within-task difference---robust to task
+difficulty and free of any LLM judge.}
+\label{fig:pipeline}
+\end{figure*}
+
 Most AI-for-science benchmarks do not measure it. Knowledge benchmarks such as
 GPQA \cite{rein2023gpqa} and ChemBench \cite{mirza2025chembench} test what a
 model knows. Predictive benchmarks such as MoleculeNet \cite{wu2018moleculenet},
@@ -325,8 +337,7 @@ capture precisely what makes fake science dangerous: it does not look wrong.
 
 \begin{table}[t]
 \centering
-\small
-\input{tables/tab_taxonomy}
+\resizebox{\columnwidth}{!}{\input{tables/tab_taxonomy}}
 \caption{The \NumTrapTypes trap types, the meta-science work motivating each, and
 the number of v1 families that exercise it. Each trap is machine-detectable and
 maps to a single \texttt{flaw\_kind} a correct detection must name.}
@@ -374,8 +385,8 @@ vocabulary, enabling separate reporting of cued and uncued performance.
 \centering
 \small
 \input{tables/tab_composition}
-\caption{Composition of \bench v1: domains, family counts, and the trap types
-each domain exercises.}
+\caption{Composition of \bench v1: families per domain, how many are paired
+counterfactual twins, and the number of distinct trap types exercised.}
 \label{tab:composition}
 \end{table}
 
@@ -399,7 +410,7 @@ interval is a \emph{cluster bootstrap} that resamples whole families (276 pairs 
 \NumPaired clusters): the naive 95\% CI is
 $[\NaiveGapCIlow,\NaiveGapCIhigh]$ pts (micro), and the macro gap, averaging
 per-family gaps, coincides because every family is at the floor. The separation is
-uniform across domains (Figure~\ref{fig:bydomain}). We stress these are oracle
+uniform across all \NumDomains domains and every trap type. We stress these are oracle
 bounds: \texttt{reference-careful} encodes the correct method per family, so its
 $100\%$ is by construction; the contribution is that the tasks are solvable, the
 traps bite the trusting method everywhere, and the metric and its CI cleanly
@@ -407,8 +418,7 @@ separate the two---the dynamic range a real system is measured against.
 
 \begin{table}[t]
 \centering
-\small
-\input{tables/tab_reference}
+\resizebox{\columnwidth}{!}{\input{tables/tab_reference}}
 \caption{Reference-agent bounds (\%). The two oracles share the same computation
 and differ only in input validation, bracketing the achievable range. ``Gap'' is
 the \fsg{} $C-R$.}
@@ -424,14 +434,6 @@ agent detects no traps, the careful agent detects all of them.}
 \label{fig:disc}
 \end{figure}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.86\columnwidth]{figures/fig_bydomain}
-\caption{\fsg{} of the naive reference agent by domain. The trap effect is large
-and uniform across all \NumDomains domains; the careful agent's gap is zero
-everywhere (omitted).}
-\label{fig:bydomain}
-\end{figure}
 
 \paragraph{Resistance to gaming.}
 We verify the metric cannot be cheated by the strategies that defeat naive
@@ -478,23 +480,34 @@ cross-run variance, no human baseline); we report it as a leaderboard
 seed rather than a definitive measurement, and the public split lets others extend
 it. We report competence, robustness, the \fsg, and the confident-wrong,
 false-alarm, and trap-detection rates (Table~\ref{tab:leaderboard},
-Figure~\ref{fig:models}); per-model cluster-bootstrap gap CIs ship in the artifact.
+Figures~\ref{fig:models} and~\ref{fig:failuremodes}); per-model cluster-bootstrap
+gap CIs ship in the artifact.
 
 \IfFileExists{tables/tab_leaderboard.tex}{%
-\begin{table}[t]\centering\small
+\begin{table*}[t]\centering\small
 \input{tables/tab_leaderboard}
 \caption{Model leaderboard on \bench (uncued track, \ModelSeeds seeds per family,
 $n=\ModelPairs$ twin pairs per model; \% throughout). Lower \fsg{} is better;
 sorted by robustness.}\label{tab:leaderboard}
-\end{table}}{}
+\end{table*}}{}
 
 \IfFileExists{figures/fig_models.pdf}{%
 \begin{figure}[t]\centering
-\includegraphics[width=0.82\columnwidth]{figures/fig_models}
-\caption{Competence vs.\ robustness per model. Distance below the diagonal is the
-\fsg: a point \emph{on} the diagonal commits no fake science, while a
-high-competence, low-robustness point is exactly the failure \bench targets.}
+\includegraphics[width=\columnwidth]{figures/fig_models}
+\caption{Per-model competence (clean) and robustness (trapped), sorted by
+robustness. No model exceeds $80\%$ competence or $85\%$ robustness, and several
+are \emph{more} robust than competent---they pass more trapped than clean tasks.}
 \label{fig:models}
+\end{figure}}{}
+
+\IfFileExists{figures/fig_failuremodes.pdf}{%
+\begin{figure}[t]\centering
+\includegraphics[width=\columnwidth]{figures/fig_failuremodes}
+\caption{The two failure modes \bench separates, per model. \emph{Confident-wrong}
+(fake science: a wrong, undetected, confident answer) versus \emph{false-alarm}
+(flagging a flaw on clean data). Models fail in both directions and trade one off
+against the other; a single accuracy number would hide this.}
+\label{fig:failuremodes}
 \end{figure}}{}
 
 \paragraph{Findings.}
@@ -567,6 +580,10 @@ skeptics---over-flagging clean data while still missing real flaws. We hope \ben
 provides a durable target for measuring, and improving, the reliability of AI
 scientists.
 
+% Bibliography precedes the appendix so the appendix's wide table cannot float
+% back into the reference list (and we avoid \clearpage, which AAAI forbids).
+\bibliography{references}
+
 \appendix
 
 \section{Per-Family Specification}\label{app:families}
@@ -576,8 +593,7 @@ counterfactual twin or a robustness scenario, and the task.
 
 \begin{table*}[t]
 \centering
-\footnotesize
-\input{tables/tab_families}
+\resizebox{\textwidth}{!}{\input{tables/tab_families}}
 \caption{The \NumFamilies task families of \bench v1 (\NumPaired paired twins,
 \NumScenario non-paired robustness scenarios).}
 \label{tab:families}
@@ -599,8 +615,5 @@ detection requires naming the unit \emph{and} reporting the correctly converted
 value, so guessing ``kcal'' without doing the conversion earns no credit. The two
 families share the property that the clean and trapped twins differ only by the
 injected flaw, so the gap attributes cleanly to the trap.
-
-% \bibliographystyle is set automatically by aaai2026.sty — do not add it here.
-\bibliography{references}
 
 \end{document}

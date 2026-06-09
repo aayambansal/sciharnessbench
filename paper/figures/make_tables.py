@@ -40,13 +40,15 @@ def composition():
     rows = []
     for dom in sorted({f.domain for f in fams}):
         dfams = [f for f in fams if f.domain == dom]
-        traps = sorted({t.value for f in dfams for t in f.trap_types})
-        rows.append(f"{dom} & {len(dfams)} & {', '.join(TRAP_SHORT[t] for t in traps)} \\\\")
+        ntraps = len({t.value for f in dfams for t in f.trap_types})
+        npair = sum(1 for f in dfams if f.paired)
+        rows.append(f"{dom} & {len(dfams)} & {npair} & {ntraps} \\\\")
     ntr = len({t.value for f in fams for t in f.trap_types})
-    body = ("\\begin{tabular}{@{}lcl@{}}\n\\toprule\n"
-            "Domain & Families & Trap types exercised \\\\\n\\midrule\n" + "\n".join(rows)
-            + f"\n\\midrule\n\\textbf{{Total}} & \\textbf{{{len(fams)}}} & "
-              f"\\textbf{{{ntr} distinct trap types}} \\\\\n\\bottomrule\n\\end{{tabular}}\n")
+    npaired = sum(1 for f in fams if f.paired)
+    body = ("\\begin{tabular}{@{}lccc@{}}\n\\toprule\n"
+            "Domain & Families & Paired & Traps \\\\\n\\midrule\n" + "\n".join(rows)
+            + f"\n\\midrule\n\\textbf{{Total}} & \\textbf{{{len(fams)}}} & \\textbf{{{npaired}}} & "
+              f"\\textbf{{{ntr}}} \\\\\n\\bottomrule\n\\end{{tabular}}\n")
     w("tab_composition.tex", body)
 
 
